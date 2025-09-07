@@ -78,6 +78,7 @@ class DataScheduler:
     async def cleanup_old_data(self):
         logger.info("Starting weekly data cleanup")
         try:
+            # Импорт внутри метода для избежания циклических зависимостей
             from .core.database import clickhouse_manager
             
             # Remove data older than 1 year

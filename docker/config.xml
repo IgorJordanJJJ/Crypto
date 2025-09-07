@@ -1,0 +1,120 @@
+<?xml version="1.0"?>
+<clickhouse>
+    <!-- Логирование -->
+    <logger>
+        <level>information</level>
+        <console>true</console>
+        <log>/var/log/clickhouse-server/clickhouse-server.log</log>
+        <errorlog>/var/log/clickhouse-server/clickhouse-server.err.log</errorlog>
+        <size>1000M</size>
+        <count>10</count>
+    </logger>
+
+    <!-- Порты -->
+    <http_port>8123</http_port>
+    <tcp_port>9000</tcp_port>
+    <mysql_port>9004</mysql_port>
+    <postgresql_port>9005</postgresql_port>
+    <interserver_http_port>9009</interserver_http_port>
+
+    <!-- Слушать все интерфейсы -->
+    <listen_host>0.0.0.0</listen_host>
+
+    <!-- Ограничения -->
+    <max_connections>4096</max_connections>
+    <keep_alive_timeout>3</keep_alive_timeout>
+    <max_concurrent_queries>100</max_concurrent_queries>
+    <uncompressed_cache_size>8589934592</uncompressed_cache_size>
+    <mark_cache_size>5368709120</mark_cache_size>
+
+    <!-- Пути -->
+    <path>/var/lib/clickhouse/</path>
+    <tmp_path>/var/lib/clickhouse/tmp/</tmp_path>
+    <user_files_path>/var/lib/clickhouse/user_files/</user_files_path>
+
+    <!-- Указываем, где лежат пользователи -->
+    <user_directories>
+        <users_xml>
+            <path>/etc/clickhouse-server/users.xml</path>
+        </users_xml>
+        <local_directory>
+            <path>/var/lib/clickhouse/access/</path>
+        </local_directory>
+    </user_directories>
+
+    <!-- Профиль и база по умолчанию -->
+    <default_profile>default</default_profile>
+    <default_database>default</default_database>
+
+    <!-- Часовой пояс -->
+    <timezone>UTC</timezone>
+
+    <!-- Безопасность -->
+    <mlock_executable>false</mlock_executable>
+
+    <!-- Внешние серверы, ZooKeeper и макросы (опционально, можно игнорировать) -->
+    <remote_servers incl="clickhouse_remote_servers" />
+    <zookeeper incl="zookeeper-servers" optional="true" />
+    <macros incl="macros" optional="true" />
+
+    <!-- Перезагрузка словарей -->
+    <builtin_dictionaries_reload_interval>3600</builtin_dictionaries_reload_interval>
+
+    <!-- Таймауты сессии -->
+    <max_session_timeout>3600</max_session_timeout>
+    <default_session_timeout>60</default_session_timeout>
+
+    <!-- Лог запросов -->
+    <query_log>
+        <database>system</database>
+        <table>query_log</table>
+        <flush_interval_milliseconds>7500</flush_interval_milliseconds>
+    </query_log>
+
+    <!-- Путь к кастомным схемам -->
+    <dictionaries_config>*_dictionary.xml</dictionaries_config>
+    <format_schema_path>/var/lib/clickhouse/format_schemas/</format_schema_path>
+
+    <!-- Секция профилей (ОБЯЗАТЕЛЬНО) -->
+    <profiles>
+        <default>
+            <max_memory_usage>10000000000</max_memory_usage>
+            <use_uncompressed_cache>0</use_uncompressed_cache>
+            <load_balancing>random</load_balancing>
+            <log_queries>1</log_queries>
+            <max_threads>4</max_threads>
+            <max_block_size>65505</max_block_size>
+        </default>
+
+        <!-- Только для чтения (опционально) -->
+        <readonly>
+            <readonly>1</readonly>
+        </readonly>
+    </profiles>
+
+    <!-- Секция квот (ОБЯЗАТЕЛЬНО) -->
+    <quotas>
+        <default>
+            <interval>
+                <duration>3600</duration>
+                <queries>0</queries>
+                <errors>0</errors>
+                <result_rows>0</result_rows>
+                <read_rows>0</read_rows>
+                <execution_time>0</execution_time>
+            </interval>
+        </default>
+    </quotas>
+
+    <!-- Сжатие (можно оставить, предупреждение не критично) -->
+    <compression incl="clickhouse_compression">
+        <case>
+            <method>lz4</method>
+        </case>
+    </compression>
+
+    <!-- DDL-очередь -->
+    <distributed_ddl>
+        <path>/clickhouse/task_queue/ddl</path>
+    </distributed_ddl>
+</clickhouse>

@@ -33,6 +33,7 @@ class CryptocurrencyMapper:
         market_data: List[MarketData] = None
     ) -> CryptocurrencyDetailResponse:
         """Преобразование в детальный DTO с историей"""
+        # Импорты внутри метода для избежания циклических зависимостей
         from .price_history_mapper import PriceHistoryMapper
         from .market_data_mapper import MarketDataMapper
         

@@ -2,8 +2,10 @@ from fastapi import APIRouter, Request, Form, Query
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from typing import Optional
-from ..repositories.crypto_repository import CryptocurrencyRepository, PriceHistoryRepository
-from ..repositories.defi_repository import DeFiProtocolRepository, TVLHistoryRepository
+from ..repositories.crypto_repository import CryptocurrencyRepository
+from ..repositories.price_history_repository import PriceHistoryRepository
+from ..repositories.defi_repository import DeFiProtocolRepository
+from ..repositories.tvl_history_repository import TVLHistoryRepository
 import logging
 
 logger = logging.getLogger(__name__)

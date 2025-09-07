@@ -8,12 +8,12 @@ from ..schemas.crypto_schemas import (
     CryptocurrencyFilter,
     PriceHistoryFilter
 )
-from ..repositories.crypto_repository import (
-    CryptocurrencyRepository,
-    PriceHistoryRepository,
-    MarketDataRepository
-)
-from ..mappers.crypto_mapper import CryptocurrencyMapper, PriceHistoryMapper, MarketDataMapper
+from ..repositories.crypto_repository import CryptocurrencyRepository
+from ..repositories.price_history_repository import PriceHistoryRepository
+from ..repositories.market_data_repository import MarketDataRepository
+from ..mappers.cryptocurrency_mapper import CryptocurrencyMapper
+from ..mappers.price_history_mapper import PriceHistoryMapper
+from ..mappers.market_data_mapper import MarketDataMapper
 
 
 class CryptocurrencyController:

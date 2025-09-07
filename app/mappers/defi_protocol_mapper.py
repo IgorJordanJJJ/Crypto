@@ -34,6 +34,7 @@ class DeFiProtocolMapper:
         tvl_history: List[TVLHistory] = None
     ) -> DeFiProtocolDetailResponse:
         """Преобразование в детальный DTO с историей TVL"""
+        # Импорт внутри метода для избежания циклических зависимостей
         from .tvl_history_mapper import TVLHistoryMapper
         
         return DeFiProtocolDetailResponse(

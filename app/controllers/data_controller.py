@@ -36,6 +36,7 @@ class DataController:
     async def get_data_status(self) -> dict:
         """Получение статуса данных"""
         try:
+            # Импорты внутри метода для избежания циклических зависимостей
             from ..repositories.crypto_repository import CryptocurrencyRepository
             from ..repositories.defi_repository import DeFiProtocolRepository
             

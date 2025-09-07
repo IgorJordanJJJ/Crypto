@@ -7,11 +7,10 @@ from ..schemas.defi_schemas import (
     DeFiProtocolFilter,
     TVLHistoryFilter
 )
-from ..repositories.defi_repository import (
-    DeFiProtocolRepository,
-    TVLHistoryRepository
-)
-from ..mappers.defi_mapper import DeFiProtocolMapper, TVLHistoryMapper
+from ..repositories.defi_repository import DeFiProtocolRepository
+from ..repositories.tvl_history_repository import TVLHistoryRepository
+from ..mappers.defi_protocol_mapper import DeFiProtocolMapper
+from ..mappers.tvl_history_mapper import TVLHistoryMapper
 
 
 class DeFiController:

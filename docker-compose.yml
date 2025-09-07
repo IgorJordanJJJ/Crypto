@@ -73,6 +73,71 @@ services:
       - ./logs:/app/logs
     command: ["python", "-m", "app.scheduler"]
 
+  superset-redis:
+    image: redis:7-alpine
+    container_name: crypto-superset-redis
+    networks:
+      - crypto-network
+    restart: unless-stopped
+    volumes:
+      - superset_redis_data:/data
+
+  superset-postgres:
+    image: postgres:15-alpine
+    container_name: crypto-superset-postgres
+    environment:
+      - POSTGRES_DB=superset
+      - POSTGRES_USER=superset
+      - POSTGRES_PASSWORD=${SUPERSET_DB_PASSWORD:-supersetpassword}
+    volumes:
+      - superset_postgres_data:/var/lib/postgresql/data
+    networks:
+      - crypto-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U superset"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  superset:
+    image: apache/superset:latest
+    container_name: crypto-superset
+    ports:
+      - "8088:8088"
+    environment:
+      - SUPERSET_SECRET_KEY=${SUPERSET_SECRET_KEY:-your_secret_key_here}
+      - DATABASE_DB=superset
+      - DATABASE_HOST=superset-postgres
+      - DATABASE_PASSWORD=${SUPERSET_DB_PASSWORD:-supersetpassword}
+      - DATABASE_USER=superset
+      - DATABASE_PORT=5432
+      - DATABASE_DIALECT=postgresql
+      - REDIS_HOST=superset-redis
+      - REDIS_PORT=6379
+      - SUPERSET_WEBSERVER_PORT=8088
+      - SUPERSET_CONFIG_PATH=/app/docker/superset_config.py
+    depends_on:
+      superset-postgres:
+        condition: service_healthy
+      superset-redis:
+        condition: service_started
+      clickhouse:
+        condition: service_healthy
+    networks:
+      - crypto-network
+    restart: unless-stopped
+    volumes:
+      - ./docker/superset:/app/docker
+      - superset_home:/app/superset_home
+    command: ["/app/docker/docker-init.sh"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8088/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
   nginx:
     image: nginx:alpine
     container_name: crypto-nginx
@@ -84,6 +149,7 @@ services:
       - ./docker/ssl:/etc/nginx/ssl:ro
     depends_on:
       - crypto-app
+      - superset
     networks:
       - crypto-network
     restart: unless-stopped
@@ -92,6 +158,12 @@ volumes:
   clickhouse_data:
     driver: local
   clickhouse_logs:
+    driver: local
+  superset_redis_data:
+    driver: local
+  superset_postgres_data:
+    driver: local
+  superset_home:
     driver: local
 
 networks:

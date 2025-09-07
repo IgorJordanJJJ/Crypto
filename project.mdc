@@ -1,0 +1,5411 @@
+Project Path: app
+
+Source Tree:
+
+```
+app
+├── controllers
+│   ├── crypto_controller.py
+│   ├── data_controller.py
+│   ├── defi_controller.py
+│   ├── web_controller.py
+│   └── __init__.py
+├── core
+│   ├── config.py
+│   ├── database.py
+│   └── __init__.py
+├── main.py
+├── mappers
+│   ├── cryptocurrency_mapper.py
+│   ├── defi_protocol_mapper.py
+│   ├── market_data_mapper.py
+│   ├── price_history_mapper.py
+│   ├── tvl_history_mapper.py
+│   └── __init__.py
+├── models
+│   ├── base.py
+│   ├── crypto.py
+│   └── __init__.py
+├── repositories
+│   ├── base_repository.py
+│   ├── crypto_repository.py
+│   ├── defi_repository.py
+│   ├── filterable_repository.py
+│   ├── market_data_repository.py
+│   ├── price_history_repository.py
+│   ├── searchable_repository.py
+│   ├── tvl_history_repository.py
+│   └── __init__.py
+├── scheduler.py
+├── schemas
+│   ├── crypto_schemas.py
+│   ├── defi_schemas.py
+│   └── __init__.py
+├── services
+│   ├── batch_processor.py
+│   ├── data_fetcher.py
+│   └── __init__.py
+├── static
+│   ├── css
+│   │   └── main.css
+│   └── js
+│       └── main.js
+├── templates
+│   ├── analytics.html
+│   ├── base.html
+│   ├── cryptocurrencies.html
+│   ├── defi.html
+│   ├── index.html
+│   └── partials
+│       ├── crypto_details_modal.html
+│       ├── crypto_table.html
+│       ├── defi_details_modal.html
+│       ├── defi_table.html
+│       └── error.html
+└── __init__.py
+
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\controllers\crypto_controller.py`:
+
+```py
+from typing import List, Optional
+from fastapi import APIRouter, HTTPException, Query, Depends
+from ..schemas.crypto_schemas import (
+    CryptocurrencyResponse,
+    CryptocurrencyDetailResponse,
+    PriceHistoryResponse,
+    MarketDataResponse,
+    CryptocurrencyFilter,
+    PriceHistoryFilter
+)
+from ..repositories.crypto_repository import (
+    CryptocurrencyRepository,
+    PriceHistoryRepository,
+    MarketDataRepository
+)
+from ..mappers.crypto_mapper import CryptocurrencyMapper, PriceHistoryMapper, MarketDataMapper
+
+
+class CryptocurrencyController:
+    """Контроллер для работы с криптовалютами"""
+    
+    def __init__(self):
+        self.crypto_repo = CryptocurrencyRepository()
+        self.price_repo = PriceHistoryRepository()
+        self.market_repo = MarketDataRepository()
+    
+    async def get_cryptocurrencies(
+        self,
+        limit: int = Query(100, ge=1, le=1000),
+        offset: int = Query(0, ge=0),
+        search: Optional[str] = Query(None, description="Search by name or symbol")
+    ) -> List[dict]:
+        """Получение списка криптовалют"""
+        try:
+            filter_params = CryptocurrencyFilter(
+                search=search,
+                limit=limit,
+                offset=offset
+            )
+            
+            # Получаем криптовалюты с последними ценами
+            crypto_data = self.crypto_repo.get_cryptocurrencies_with_latest_price(
+                limit=limit,
+                offset=offset
+            )
+            
+            # Если есть поиск, фильтруем результат
+            if search:
+                search_lower = search.lower()
+                crypto_data = [
+                    crypto for crypto in crypto_data
+                    if (crypto.get('name', '').lower().find(search_lower) >= 0 or
+                        crypto.get('symbol', '').lower().find(search_lower) >= 0)
+                ]
+            
+            return crypto_data
+            
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def get_cryptocurrency_detail(self, crypto_id: str) -> dict:
+        """Получение детальной информации о криптовалюте"""
+        try:
+            crypto_data = self.crypto_repo.find_by_id(crypto_id)
+            if not crypto_data:
+                raise HTTPException(status_code=404, detail="Cryptocurrency not found")
+            
+            return crypto_data
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def get_price_history(
+        self,
+        crypto_id: str,
+        days: int = Query(30, ge=1, le=365)
+    ) -> List[dict]:
+        """Получение истории цен криптовалюты"""
+        try:
+            price_data = self.price_repo.find_by_crypto_id(crypto_id, days=days)
+            return price_data
+            
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def get_market_data(
+        self,
+        crypto_id: str,
+        days: int = Query(30, ge=1, le=365)
+    ) -> List[dict]:
+        """Получение рыночных данных криптовалюты"""
+        try:
+            market_data = self.market_repo.find_by_crypto_id(crypto_id, days=days)
+            return market_data
+            
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def get_top_gainers(self, limit: int = Query(10, ge=1, le=50)) -> List[dict]:
+        """Получение топ растущих криптовалют"""
+        try:
+            return self.price_repo.get_top_gainers(limit=limit)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def get_top_losers(self, limit: int = Query(10, ge=1, le=50)) -> List[dict]:
+        """Получение топ падающих криптовалют"""
+        try:
+            return self.price_repo.get_top_losers(limit=limit)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def get_market_summary(self) -> dict:
+        """Получение сводной рыночной статистики"""
+        try:
+            return self.market_repo.get_market_summary()
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+
+def create_crypto_router() -> APIRouter:
+    """Создание роутера для криптовалют"""
+    router = APIRouter(prefix="/api/cryptocurrencies", tags=["cryptocurrencies"])
+    controller = CryptocurrencyController()
+    
+    @router.get("")
+    async def get_cryptocurrencies(
+        limit: int = Query(100, ge=1, le=1000),
+        offset: int = Query(0, ge=0),
+        search: Optional[str] = Query(None, description="Search by name or symbol")
+    ):
+        return await controller.get_cryptocurrencies(limit, offset, search)
+    
+    @router.get("/{crypto_id}")
+    async def get_cryptocurrency_detail(crypto_id: str):
+        return await controller.get_cryptocurrency_detail(crypto_id)
+    
+    @router.get("/{crypto_id}/price-history")
+    async def get_price_history(
+        crypto_id: str,
+        days: int = Query(30, ge=1, le=365)
+    ):
+        return await controller.get_price_history(crypto_id, days)
+    
+    @router.get("/{crypto_id}/market-data")
+    async def get_market_data(
+        crypto_id: str,
+        days: int = Query(30, ge=1, le=365)
+    ):
+        return await controller.get_market_data(crypto_id, days)
+    
+    return router
+
+
+def create_analytics_router() -> APIRouter:
+    """Создание роутера для аналитики"""
+    router = APIRouter(prefix="/api/analytics", tags=["analytics"])
+    controller = CryptocurrencyController()
+    
+    @router.get("/top-gainers")
+    async def get_top_gainers(limit: int = Query(10, ge=1, le=50)):
+        return await controller.get_top_gainers(limit)
+    
+    @router.get("/top-losers") 
+    async def get_top_losers(limit: int = Query(10, ge=1, le=50)):
+        return await controller.get_top_losers(limit)
+    
+    @router.get("/market-summary")
+    async def get_market_summary():
+        return await controller.get_market_summary()
+    
+    return router
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\controllers\data_controller.py`:
+
+```py
+from fastapi import APIRouter, HTTPException, BackgroundTasks
+from ..services.batch_processor import data_processor
+import asyncio
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class DataController:
+    """Контроллер для управления данными"""
+    
+    async def refresh_data(self, background_tasks: BackgroundTasks) -> dict:
+        """Обновление данных из API"""
+        try:
+            # Запускаем обновление в фоновом режиме
+            background_tasks.add_task(self._perform_data_refresh)
+            
+            return {
+                "message": "Data refresh started",
+                "status": "in_progress"
+            }
+            
+        except Exception as e:
+            logger.error(f"Error starting data refresh: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def _perform_data_refresh(self):
+        """Выполнение обновления данных"""
+        try:
+            logger.info("Starting background data refresh")
+            await data_processor.run_full_data_processing()
+            logger.info("Background data refresh completed")
+        except Exception as e:
+            logger.error(f"Error in background data refresh: {e}")
+    
+    async def get_data_status(self) -> dict:
+        """Получение статуса данных"""
+        try:
+            from ..repositories.crypto_repository import CryptocurrencyRepository
+            from ..repositories.defi_repository import DeFiProtocolRepository
+            
+            crypto_repo = CryptocurrencyRepository()
+            defi_repo = DeFiProtocolRepository()
+            
+            crypto_count = crypto_repo.count_all()
+            defi_count = defi_repo.count_all()
+            
+            return {
+                "cryptocurrencies_count": crypto_count,
+                "defi_protocols_count": defi_count,
+                "last_updated": "2024-01-01T00:00:00Z",  # TODO: реализовать реальное время
+                "status": "ready"
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting data status: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+
+def create_data_router() -> APIRouter:
+    """Создание роутера для управления данными"""
+    router = APIRouter(prefix="/api/data", tags=["data"])
+    controller = DataController()
+    
+    @router.post("/refresh")
+    async def refresh_data(background_tasks: BackgroundTasks):
+        return await controller.refresh_data(background_tasks)
+    
+    @router.get("/status")
+    async def get_data_status():
+        return await controller.get_data_status()
+    
+    return router
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\controllers\defi_controller.py`:
+
+```py
+from typing import List, Optional
+from fastapi import APIRouter, HTTPException, Query
+from ..schemas.defi_schemas import (
+    DeFiProtocolResponse,
+    DeFiProtocolDetailResponse,
+    TVLHistoryResponse,
+    DeFiProtocolFilter,
+    TVLHistoryFilter
+)
+from ..repositories.defi_repository import (
+    DeFiProtocolRepository,
+    TVLHistoryRepository
+)
+from ..mappers.defi_mapper import DeFiProtocolMapper, TVLHistoryMapper
+
+
+class DeFiController:
+    """Контроллер для работы с DeFi протоколами"""
+    
+    def __init__(self):
+        self.protocol_repo = DeFiProtocolRepository()
+        self.tvl_repo = TVLHistoryRepository()
+    
+    async def get_protocols(
+        self,
+        limit: int = Query(100, ge=1, le=1000),
+        offset: int = Query(0, ge=0),
+        category: Optional[str] = Query(None, description="Filter by category"),
+        chain: Optional[str] = Query(None, description="Filter by blockchain")
+    ) -> List[dict]:
+        """Получение списка DeFi протоколов"""
+        try:
+            filter_params = DeFiProtocolFilter(
+                category=category,
+                chain=chain,
+                limit=limit,
+                offset=offset
+            )
+            
+            # Получаем протоколы с последними данными TVL
+            protocol_data = self.protocol_repo.get_protocols_with_latest_tvl(
+                limit=limit,
+                offset=offset
+            )
+            
+            # Применяем фильтры если они заданы
+            if category:
+                protocol_data = [p for p in protocol_data if p.get('category') == category]
+            
+            if chain:
+                protocol_data = [p for p in protocol_data if p.get('chain') == chain]
+            
+            return protocol_data
+            
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def get_protocol_detail(self, protocol_id: str) -> dict:
+        """Получение детальной информации о протоколе"""
+        try:
+            protocol_data = self.protocol_repo.find_by_id(protocol_id)
+            if not protocol_data:
+                raise HTTPException(status_code=404, detail="Protocol not found")
+            
+            return protocol_data
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def get_tvl_history(
+        self,
+        protocol_id: str,
+        days: int = Query(30, ge=1, le=365)
+    ) -> List[dict]:
+        """Получение истории TVL протокола"""
+        try:
+            tvl_data = self.tvl_repo.find_by_protocol_id(protocol_id, days=days)
+            return tvl_data
+            
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def get_top_protocols_by_tvl(self, limit: int = Query(20, ge=1, le=100)) -> List[dict]:
+        """Получение топ протоколов по TVL"""
+        try:
+            return self.protocol_repo.get_top_by_tvl(limit=limit)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def get_categories_summary(self) -> List[dict]:
+        """Получение статистики по категориям"""
+        try:
+            return self.protocol_repo.get_categories_summary()
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def get_chains_summary(self) -> List[dict]:
+        """Получение статистики по блокчейнам"""
+        try:
+            return self.protocol_repo.get_chains_summary()
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def get_tvl_summary(self) -> dict:
+        """Получение сводной статистики TVL"""
+        try:
+            return self.tvl_repo.get_tvl_summary()
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def get_total_tvl_history(self, days: int = Query(30, ge=1, le=365)) -> List[dict]:
+        """Получение истории общего TVL"""
+        try:
+            return self.tvl_repo.get_total_tvl_history(days=days)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def get_top_tvl_gainers(self, limit: int = Query(10, ge=1, le=50)) -> List[dict]:
+        """Получение протоколов с наибольшим ростом TVL"""
+        try:
+            return self.tvl_repo.get_top_tvl_gainers(limit=limit)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+
+def create_defi_router() -> APIRouter:
+    """Создание роутера для DeFi протоколов"""
+    router = APIRouter(prefix="/api/defi", tags=["defi"])
+    controller = DeFiController()
+    
+    @router.get("/protocols")
+    async def get_protocols(
+        limit: int = Query(100, ge=1, le=1000),
+        offset: int = Query(0, ge=0),
+        category: Optional[str] = Query(None, description="Filter by category"),
+        chain: Optional[str] = Query(None, description="Filter by blockchain")
+    ):
+        return await controller.get_protocols(limit, offset, category, chain)
+    
+    @router.get("/protocols/{protocol_id}")
+    async def get_protocol_detail(protocol_id: str):
+        return await controller.get_protocol_detail(protocol_id)
+    
+    @router.get("/protocols/{protocol_id}/tvl-history")
+    async def get_tvl_history(
+        protocol_id: str,
+        days: int = Query(30, ge=1, le=365)
+    ):
+        return await controller.get_tvl_history(protocol_id, days)
+    
+    @router.get("/top-protocols")
+    async def get_top_protocols_by_tvl(limit: int = Query(20, ge=1, le=100)):
+        return await controller.get_top_protocols_by_tvl(limit)
+    
+    @router.get("/categories/summary")
+    async def get_categories_summary():
+        return await controller.get_categories_summary()
+    
+    @router.get("/chains/summary")
+    async def get_chains_summary():
+        return await controller.get_chains_summary()
+    
+    @router.get("/tvl/summary")
+    async def get_tvl_summary():
+        return await controller.get_tvl_summary()
+    
+    @router.get("/tvl/history")
+    async def get_total_tvl_history(days: int = Query(30, ge=1, le=365)):
+        return await controller.get_total_tvl_history(days)
+    
+    @router.get("/tvl/top-gainers")
+    async def get_top_tvl_gainers(limit: int = Query(10, ge=1, le=50)):
+        return await controller.get_top_tvl_gainers(limit)
+    
+    return router
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\controllers\web_controller.py`:
+
+```py
+from fastapi import APIRouter, Request, Form, Query
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+from typing import Optional
+from ..repositories.crypto_repository import CryptocurrencyRepository, PriceHistoryRepository
+from ..repositories.defi_repository import DeFiProtocolRepository, TVLHistoryRepository
+import logging
+
+logger = logging.getLogger(__name__)
+
+templates = Jinja2Templates(directory="app/templates")
+
+
+class WebController:
+    """Контроллер для веб-страниц с HTMX"""
+    
+    def __init__(self):
+        self.crypto_repo = CryptocurrencyRepository()
+        self.price_repo = PriceHistoryRepository()
+        self.defi_repo = DeFiProtocolRepository()
+        self.tvl_repo = TVLHistoryRepository()
+    
+    async def index_page(self, request: Request) -> HTMLResponse:
+        """Главная страница"""
+        try:
+            # Получаем базовую статистику для главной страницы
+            crypto_count = self.crypto_repo.count_all()
+            defi_count = self.defi_repo.count_all()
+            
+            context = {
+                "request": request,
+                "crypto_count": crypto_count,
+                "defi_count": defi_count,
+                "page_title": "Crypto DeFi Analyzer"
+            }
+            
+            return templates.TemplateResponse("index.html", context)
+            
+        except Exception as e:
+            logger.error(f"Error in index page: {e}")
+            context = {
+                "request": request,
+                "error": "Ошибка загрузки данных",
+                "page_title": "Crypto DeFi Analyzer"
+            }
+            return templates.TemplateResponse("index.html", context)
+    
+    async def cryptocurrencies_page(self, request: Request) -> HTMLResponse:
+        """Страница криптовалют"""
+        return templates.TemplateResponse("cryptocurrencies.html", {
+            "request": request,
+            "page_title": "Криптовалюты"
+        })
+    
+    async def defi_page(self, request: Request) -> HTMLResponse:
+        """Страница DeFi протоколов"""
+        return templates.TemplateResponse("defi.html", {
+            "request": request,
+            "page_title": "DeFi Протоколы"
+        })
+    
+    async def analytics_page(self, request: Request) -> HTMLResponse:
+        """Страница аналитики"""
+        return templates.TemplateResponse("analytics.html", {
+            "request": request,
+            "page_title": "Аналитика"
+        })
+    
+    # HTMX-специфичные методы для частичных обновлений
+    
+    async def crypto_table_partial(
+        self,
+        request: Request,
+        limit: int = 50,
+        offset: int = 0,
+        search: Optional[str] = None
+    ) -> HTMLResponse:
+        """Частичное обновление таблицы криптовалют через HTMX"""
+        try:
+            crypto_data = self.crypto_repo.get_cryptocurrencies_with_latest_price(
+                limit=limit,
+                offset=offset
+            )
+            
+            if search:
+                search_lower = search.lower()
+                crypto_data = [
+                    crypto for crypto in crypto_data
+                    if (crypto.get('name', '').lower().find(search_lower) >= 0 or
+                        crypto.get('symbol', '').lower().find(search_lower) >= 0)
+                ]
+            
+            return templates.TemplateResponse("partials/crypto_table.html", {
+                "request": request,
+                "cryptocurrencies": crypto_data,
+                "current_page": offset // limit + 1
+            })
+            
+        except Exception as e:
+            logger.error(f"Error in crypto table partial: {e}")
+            return templates.TemplateResponse("partials/error.html", {
+                "request": request,
+                "error_message": "Ошибка загрузки данных криптовалют"
+            })
+    
+    async def defi_table_partial(
+        self,
+        request: Request,
+        limit: int = 50,
+        offset: int = 0,
+        category: Optional[str] = None,
+        chain: Optional[str] = None
+    ) -> HTMLResponse:
+        """Частичное обновление таблицы DeFi протоколов через HTMX"""
+        try:
+            protocol_data = self.defi_repo.get_protocols_with_latest_tvl(
+                limit=limit,
+                offset=offset
+            )
+            
+            # Применяем фильтры
+            if category:
+                protocol_data = [p for p in protocol_data if p.get('category') == category]
+            
+            if chain:
+                protocol_data = [p for p in protocol_data if p.get('chain') == chain]
+            
+            return templates.TemplateResponse("partials/defi_table.html", {
+                "request": request,
+                "protocols": protocol_data,
+                "current_page": offset // limit + 1
+            })
+            
+        except Exception as e:
+            logger.error(f"Error in defi table partial: {e}")
+            return templates.TemplateResponse("partials/error.html", {
+                "request": request,
+                "error_message": "Ошибка загрузки данных DeFi протоколов"
+            })
+    
+    async def crypto_details_modal(self, request: Request, crypto_id: str) -> HTMLResponse:
+        """Модальное окно с деталями криптовалюты"""
+        try:
+            crypto_data = self.crypto_repo.find_by_id(crypto_id)
+            if not crypto_data:
+                return templates.TemplateResponse("partials/error.html", {
+                    "request": request,
+                    "error_message": "Криптовалюта не найдена"
+                })
+            
+            # Получаем историю цен
+            price_history = self.price_repo.find_by_crypto_id(crypto_id, days=30)
+            
+            return templates.TemplateResponse("partials/crypto_details_modal.html", {
+                "request": request,
+                "cryptocurrency": crypto_data,
+                "price_history": price_history[:10]  # Ограничиваем для отображения в таблице
+            })
+            
+        except Exception as e:
+            logger.error(f"Error in crypto details modal: {e}")
+            return templates.TemplateResponse("partials/error.html", {
+                "request": request,
+                "error_message": "Ошибка загрузки деталей криптовалюты"
+            })
+    
+    async def defi_details_modal(self, request: Request, protocol_id: str) -> HTMLResponse:
+        """Модальное окно с деталями DeFi протокола"""
+        try:
+            protocol_data = self.defi_repo.find_by_id(protocol_id)
+            if not protocol_data:
+                return templates.TemplateResponse("partials/error.html", {
+                    "request": request,
+                    "error_message": "Протокол не найден"
+                })
+            
+            # Получаем историю TVL
+            tvl_history = self.tvl_repo.find_by_protocol_id(protocol_id, days=30)
+            
+            return templates.TemplateResponse("partials/defi_details_modal.html", {
+                "request": request,
+                "protocol": protocol_data,
+                "tvl_history": tvl_history[:10]  # Ограничиваем для отображения в таблице
+            })
+            
+        except Exception as e:
+            logger.error(f"Error in defi details modal: {e}")
+            return templates.TemplateResponse("partials/error.html", {
+                "request": request,
+                "error_message": "Ошибка загрузки деталей протокола"
+            })
+
+
+def create_web_router() -> APIRouter:
+    """Создание роутера для веб-страниц"""
+    router = APIRouter(tags=["web"])
+    controller = WebController()
+    
+    # Основные страницы
+    @router.get("/", response_class=HTMLResponse)
+    async def index_page(request: Request):
+        return await controller.index_page(request)
+    
+    @router.get("/cryptocurrencies", response_class=HTMLResponse)
+    async def cryptocurrencies_page(request: Request):
+        return await controller.cryptocurrencies_page(request)
+    
+    @router.get("/defi", response_class=HTMLResponse)
+    async def defi_page(request: Request):
+        return await controller.defi_page(request)
+    
+    @router.get("/analytics", response_class=HTMLResponse)
+    async def analytics_page(request: Request):
+        return await controller.analytics_page(request)
+    
+    # HTMX эндпоинты для частичных обновлений
+    @router.get("/partials/crypto-table", response_class=HTMLResponse)
+    async def crypto_table_partial(
+        request: Request,
+        limit: int = Query(50, ge=1, le=100),
+        offset: int = Query(0, ge=0),
+        search: Optional[str] = Query(None)
+    ):
+        return await controller.crypto_table_partial(request, limit, offset, search)
+    
+    @router.get("/partials/defi-table", response_class=HTMLResponse)
+    async def defi_table_partial(
+        request: Request,
+        limit: int = Query(50, ge=1, le=100),
+        offset: int = Query(0, ge=0),
+        category: Optional[str] = Query(None),
+        chain: Optional[str] = Query(None)
+    ):
+        return await controller.defi_table_partial(request, limit, offset, category, chain)
+    
+    @router.get("/partials/crypto-details/{crypto_id}", response_class=HTMLResponse)
+    async def crypto_details_modal(request: Request, crypto_id: str):
+        return await controller.crypto_details_modal(request, crypto_id)
+    
+    @router.get("/partials/defi-details/{protocol_id}", response_class=HTMLResponse)
+    async def defi_details_modal(request: Request, protocol_id: str):
+        return await controller.defi_details_modal(request, protocol_id)
+    
+    return router
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\core\config.py`:
+
+```py
+from pydantic_settings import BaseSettings
+from typing import Optional
+
+
+class Settings(BaseSettings):
+    # ClickHouse settings
+    clickhouse_host: str = "localhost"
+    clickhouse_port: int = 8123
+    clickhouse_user: str = "default"
+    clickhouse_password: str = ""
+    clickhouse_database: str = "crypto_analytics"
+    
+    # API settings
+    coingecko_api_url: str = "https://api.coingecko.com/api/v3"
+    coingecko_api_key: Optional[str] = None
+    defipulse_api_url: str = "https://api.defipulse.com"
+    defipulse_api_key: Optional[str] = None
+    
+    # Application settings
+    app_name: str = "Crypto DeFi Analyzer"
+    app_version: str = "0.1.0"
+    debug: bool = False
+    
+    # Batch processing settings
+    batch_size: int = 100
+    fetch_interval_minutes: int = 15
+    max_retries: int = 3
+    request_timeout: int = 30
+    
+    class Config:
+        env_file = ".env"
+        case_sensitive = False
+
+
+settings = Settings()
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\core\database.py`:
+
+```py
+import clickhouse_connect
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from typing import Generator
+from .config import settings
+
+
+class ClickHouseManager:
+    def __init__(self):
+        self.host = settings.clickhouse_host
+        self.port = settings.clickhouse_port
+        self.user = settings.clickhouse_user
+        self.password = settings.clickhouse_password
+        self.database = settings.clickhouse_database
+        self._client = None
+    
+    def get_client(self):
+        if self._client is None:
+            self._client = clickhouse_connect.get_client(
+                host=self.host,
+                port=self.port,
+                username=self.user,
+                password=self.password,
+                database=self.database
+            )
+        return self._client
+    
+    def create_database(self):
+        client = clickhouse_connect.get_client(
+            host=self.host,
+            port=self.port,
+            username=self.user,
+            password=self.password
+        )
+        client.command(f"CREATE DATABASE IF NOT EXISTS {self.database}")
+    
+    def create_tables(self):
+        client = self.get_client()
+        
+        # Create cryptocurrencies table
+        client.command("""
+        CREATE TABLE IF NOT EXISTS cryptocurrencies (
+            id String,
+            symbol String,
+            name String,
+            market_cap_rank Nullable(Int32),
+            description Nullable(String),
+            website Nullable(String),
+            blockchain Nullable(String),
+            created_at DateTime,
+            updated_at DateTime
+        ) ENGINE = MergeTree()
+        ORDER BY (id, created_at)
+        """)
+        
+        # Create price_history table
+        client.command("""
+        CREATE TABLE IF NOT EXISTS price_history (
+            id UInt64,
+            cryptocurrency_id String,
+            timestamp DateTime,
+            price_usd Float64,
+            volume_24h Nullable(Float64),
+            market_cap Nullable(Float64),
+            price_change_24h Nullable(Float64),
+            price_change_percentage_24h Nullable(Float64)
+        ) ENGINE = MergeTree()
+        ORDER BY (cryptocurrency_id, timestamp)
+        """)
+        
+        # Create market_data table
+        client.command("""
+        CREATE TABLE IF NOT EXISTS market_data (
+            id UInt64,
+            cryptocurrency_id String,
+            timestamp DateTime,
+            total_supply Nullable(Float64),
+            circulating_supply Nullable(Float64),
+            max_supply Nullable(Float64),
+            ath Nullable(Float64),
+            atl Nullable(Float64),
+            ath_date Nullable(DateTime),
+            atl_date Nullable(DateTime),
+            roi_percentage Nullable(Float64)
+        ) ENGINE = MergeTree()
+        ORDER BY (cryptocurrency_id, timestamp)
+        """)
+        
+        # Create defi_protocols table
+        client.command("""
+        CREATE TABLE IF NOT EXISTS defi_protocols (
+            id String,
+            name String,
+            category Nullable(String),
+            chain Nullable(String),
+            tvl Nullable(Float64),
+            native_token_id Nullable(String),
+            website Nullable(String),
+            description Nullable(String),
+            created_at DateTime,
+            updated_at DateTime
+        ) ENGINE = MergeTree()
+        ORDER BY (id, created_at)
+        """)
+        
+        # Create tvl_history table
+        client.command("""
+        CREATE TABLE IF NOT EXISTS tvl_history (
+            id UInt64,
+            protocol_id String,
+            timestamp DateTime,
+            tvl Float64,
+            tvl_change_24h Nullable(Float64),
+            tvl_change_percentage_24h Nullable(Float64)
+        ) ENGINE = MergeTree()
+        ORDER BY (protocol_id, timestamp)
+        """)
+    
+    def execute_query(self, query: str, parameters: dict = None):
+        client = self.get_client()
+        return client.query(query, parameters or {})
+    
+    def insert_data(self, table: str, data: list[dict]):
+        client = self.get_client()
+        if data:
+            client.insert(table, data)
+
+
+clickhouse_manager = ClickHouseManager()
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\main.py`:
+
+```py
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from contextlib import asynccontextmanager
+import logging
+from .controllers.crypto_controller import create_crypto_router, create_analytics_router
+from .controllers.defi_controller import create_defi_router
+from .controllers.data_controller import create_data_router
+from .controllers.web_controller import create_web_router
+from .core.config import settings
+from .core.database import clickhouse_manager
+
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    try:
+        logger.info("Initializing database...")
+        clickhouse_manager.create_database()
+        clickhouse_manager.create_tables()
+        logger.info("Database initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {e}")
+    
+    yield
+    
+    # Shutdown
+    logger.info("Application shutdown")
+
+
+app = FastAPI(
+    title=settings.app_name,
+    version=settings.app_version,
+    description="Cryptocurrency and DeFi data analysis platform with HTMX",
+    lifespan=lifespan
+)
+
+# Mount static files
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+# Include all routers
+app.include_router(create_web_router())  # Web pages and HTMX endpoints
+app.include_router(create_crypto_router())  # Cryptocurrency API
+app.include_router(create_defi_router())  # DeFi API
+app.include_router(create_analytics_router())  # Analytics API
+app.include_router(create_data_router())  # Data management API
+
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    try:
+        # Test database connection
+        clickhouse_manager.execute_query("SELECT 1")
+        return {
+            "status": "healthy",
+            "database": "connected",
+            "version": settings.app_version
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "database": "disconnected",
+            "error": str(e),
+            "version": settings.app_version
+        }
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(
+        "app.main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=settings.debug,
+        log_level="info"
+    )
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\mappers\cryptocurrency_mapper.py`:
+
+```py
+from typing import List, Optional, Dict, Any
+from datetime import datetime
+from ..models.crypto import Cryptocurrency, PriceHistory, MarketData
+from ..schemas.crypto_schemas import (
+    CryptocurrencyResponse, 
+    CryptocurrencyDetailResponse,
+    CryptocurrencyListItem
+)
+
+
+class CryptocurrencyMapper:
+    """Маппер для преобразования данных криптовалют"""
+    
+    @staticmethod
+    def to_response(crypto: Cryptocurrency) -> CryptocurrencyResponse:
+        """Преобразование модели в DTO для ответа"""
+        return CryptocurrencyResponse(
+            id=crypto.id,
+            symbol=crypto.symbol,
+            name=crypto.name,
+            market_cap_rank=crypto.market_cap_rank,
+            description=crypto.description,
+            website=crypto.website,
+            blockchain=crypto.blockchain,
+            created_at=crypto.created_at,
+            updated_at=crypto.updated_at
+        )
+    
+    @staticmethod
+    def to_detail_response(
+        crypto: Cryptocurrency, 
+        price_history: List[PriceHistory] = None,
+        market_data: List[MarketData] = None
+    ) -> CryptocurrencyDetailResponse:
+        """Преобразование в детальный DTO с историей"""
+        from .price_history_mapper import PriceHistoryMapper
+        from .market_data_mapper import MarketDataMapper
+        
+        return CryptocurrencyDetailResponse(
+            id=crypto.id,
+            symbol=crypto.symbol,
+            name=crypto.name,
+            market_cap_rank=crypto.market_cap_rank,
+            description=crypto.description,
+            website=crypto.website,
+            blockchain=crypto.blockchain,
+            created_at=crypto.created_at,
+            updated_at=crypto.updated_at,
+            price_history=[
+                PriceHistoryMapper.to_response(ph) for ph in (price_history or [])
+            ],
+            market_data=[
+                MarketDataMapper.to_response(md) for md in (market_data or [])
+            ]
+        )
+    
+    @staticmethod
+    def to_list_item(crypto_data: Dict[str, Any]) -> CryptocurrencyListItem:
+        """Преобразование словаря данных в элемент списка"""
+        return CryptocurrencyListItem(
+            id=crypto_data.get('id', ''),
+            symbol=crypto_data.get('symbol', ''),
+            name=crypto_data.get('name', ''),
+            market_cap_rank=crypto_data.get('market_cap_rank'),
+            current_price=crypto_data.get('current_price'),
+            price_change_24h=crypto_data.get('price_change_24h'),
+            price_change_percentage_24h=crypto_data.get('price_change_percentage_24h'),
+            market_cap=crypto_data.get('market_cap'),
+            updated_at=crypto_data.get('updated_at', datetime.utcnow())
+        )
+    
+    @staticmethod
+    def from_api_data(api_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Преобразование данных из API в формат для базы данных"""
+        return {
+            'id': api_data.get('id'),
+            'symbol': api_data.get('symbol', '').lower(),
+            'name': api_data.get('name', ''),
+            'market_cap_rank': api_data.get('market_cap_rank'),
+            'description': api_data.get('description', {}).get('en') if isinstance(api_data.get('description'), dict) else api_data.get('description'),
+            'website': api_data.get('links', {}).get('homepage', [None])[0] if api_data.get('links') else api_data.get('website'),
+            'blockchain': api_data.get('asset_platform_id') or api_data.get('blockchain'),
+            'created_at': datetime.utcnow(),
+            'updated_at': datetime.utcnow()
+        }
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\mappers\defi_protocol_mapper.py`:
+
+```py
+from typing import List, Optional, Dict, Any
+from datetime import datetime
+from ..models.crypto import DeFiProtocol, TVLHistory
+from ..schemas.defi_schemas import (
+    DeFiProtocolResponse,
+    DeFiProtocolDetailResponse,
+    DeFiProtocolListItem,
+    TVLSummary
+)
+
+
+class DeFiProtocolMapper:
+    """Mapper для преобразования данных DeFi протоколов"""
+    
+    @staticmethod
+    def to_response(protocol: DeFiProtocol) -> DeFiProtocolResponse:
+        """Преобразование модели в DTO для ответа"""
+        return DeFiProtocolResponse(
+            id=protocol.id,
+            name=protocol.name,
+            category=protocol.category,
+            chain=protocol.chain,
+            tvl=protocol.tvl,
+            native_token_id=protocol.native_token_id,
+            website=protocol.website,
+            description=protocol.description,
+            created_at=protocol.created_at,
+            updated_at=protocol.updated_at
+        )
+    
+    @staticmethod
+    def to_detail_response(
+        protocol: DeFiProtocol,
+        tvl_history: List[TVLHistory] = None
+    ) -> DeFiProtocolDetailResponse:
+        """Преобразование в детальный DTO с историей TVL"""
+        from .tvl_history_mapper import TVLHistoryMapper
+        
+        return DeFiProtocolDetailResponse(
+            id=protocol.id,
+            name=protocol.name,
+            category=protocol.category,
+            chain=protocol.chain,
+            tvl=protocol.tvl,
+            native_token_id=protocol.native_token_id,
+            website=protocol.website,
+            description=protocol.description,
+            created_at=protocol.created_at,
+            updated_at=protocol.updated_at,
+            tvl_history=[
+                TVLHistoryMapper.to_response(tvl) for tvl in (tvl_history or [])
+            ]
+        )
+    
+    @staticmethod
+    def to_list_item(protocol_data: Dict[str, Any]) -> DeFiProtocolListItem:
+        """Преобразование словаря данных в элемент списка"""
+        return DeFiProtocolListItem(
+            id=protocol_data.get('id', ''),
+            name=protocol_data.get('name', ''),
+            category=protocol_data.get('category'),
+            chain=protocol_data.get('chain'),
+            tvl=protocol_data.get('tvl'),
+            tvl_change_24h=protocol_data.get('tvl_change_24h'),
+            tvl_change_percentage_24h=protocol_data.get('tvl_change_percentage_24h'),
+            updated_at=protocol_data.get('updated_at', datetime.utcnow())
+        )
+    
+    @staticmethod
+    def from_api_data(api_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Преобразование данных из API в формат для базы данных"""
+        # Обработка данных от DefiLlama API
+        protocol_id = api_data.get('id') or api_data.get('slug') or api_data.get('name', '').lower().replace(' ', '-')
+        
+        return {
+            'id': protocol_id,
+            'name': api_data.get('name', ''),
+            'category': api_data.get('category') or api_data.get('classification'),
+            'chain': api_data.get('chain') or api_data.get('chains', ['Unknown'])[0] if api_data.get('chains') else 'Unknown',
+            'tvl': float(api_data.get('tvl', 0)) if api_data.get('tvl') is not None else None,
+            'native_token_id': api_data.get('token'),
+            'website': api_data.get('url') or api_data.get('website'),
+            'description': api_data.get('description'),
+            'created_at': datetime.utcnow(),
+            'updated_at': datetime.utcnow()
+        }
+    
+    @staticmethod
+    def calculate_tvl_summary(protocols: List[Dict[str, Any]]) -> TVLSummary:
+        """Вычисление суммарной статистики TVL"""
+        if not protocols:
+            return TVLSummary(
+                total_tvl=0.0,
+                protocols_count=0,
+                top_protocol=None,
+                top_protocol_tvl=None
+            )
+        
+        total_tvl = sum(p.get('tvl', 0) or 0 for p in protocols)
+        protocols_count = len(protocols)
+        
+        # Поиск протокола с максимальным TVL
+        top_protocol_data = max(protocols, key=lambda x: x.get('tvl', 0) or 0)
+        top_protocol = top_protocol_data.get('name')
+        top_protocol_tvl = top_protocol_data.get('tvl')
+        
+        return TVLSummary(
+            total_tvl=total_tvl,
+            protocols_count=protocols_count,
+            top_protocol=top_protocol,
+            top_protocol_tvl=top_protocol_tvl
+        )
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\mappers\market_data_mapper.py`:
+
+```py
+from typing import Dict, Any
+from datetime import datetime
+from ..models.crypto import MarketData
+from ..schemas.crypto_schemas import MarketDataResponse
+
+
+class MarketDataMapper:
+    """Маппер для преобразования рыночных данных"""
+    
+    @staticmethod
+    def to_response(market_data: MarketData) -> MarketDataResponse:
+        """Преобразование модели в DTO для ответа"""
+        return MarketDataResponse(
+            id=market_data.id,
+            cryptocurrency_id=market_data.cryptocurrency_id,
+            timestamp=market_data.timestamp,
+            total_supply=market_data.total_supply,
+            circulating_supply=market_data.circulating_supply,
+            max_supply=market_data.max_supply,
+            ath=market_data.ath,
+            atl=market_data.atl,
+            ath_date=market_data.ath_date,
+            atl_date=market_data.atl_date,
+            roi_percentage=market_data.roi_percentage
+        )
+    
+    @staticmethod
+    def from_api_data(crypto_id: str, api_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Преобразование данных из API в формат для базы данных"""
+        return {
+            'cryptocurrency_id': crypto_id,
+            'timestamp': datetime.utcnow(),
+            'total_supply': api_data.get('total_supply'),
+            'circulating_supply': api_data.get('circulating_supply'),
+            'max_supply': api_data.get('max_supply'),
+            'ath': api_data.get('ath'),
+            'atl': api_data.get('atl'),
+            'ath_date': datetime.fromisoformat(api_data['ath_date'].replace('Z', '+00:00')) if api_data.get('ath_date') else None,
+            'atl_date': datetime.fromisoformat(api_data['atl_date'].replace('Z', '+00:00')) if api_data.get('atl_date') else None,
+            'roi_percentage': api_data.get('roi', {}).get('percentage') if api_data.get('roi') else None
+        }
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\mappers\price_history_mapper.py`:
+
+```py
+from typing import Dict, Any
+from datetime import datetime
+from ..models.crypto import PriceHistory
+from ..schemas.crypto_schemas import PriceHistoryResponse
+
+
+class PriceHistoryMapper:
+    """Маппер для преобразования данных истории цен"""
+    
+    @staticmethod
+    def to_response(price_history: PriceHistory) -> PriceHistoryResponse:
+        """Преобразование модели в DTO для ответа"""
+        return PriceHistoryResponse(
+            id=price_history.id,
+            cryptocurrency_id=price_history.cryptocurrency_id,
+            timestamp=price_history.timestamp,
+            price_usd=price_history.price_usd,
+            volume_24h=price_history.volume_24h,
+            market_cap=price_history.market_cap,
+            price_change_24h=price_history.price_change_24h,
+            price_change_percentage_24h=price_history.price_change_percentage_24h
+        )
+    
+    @staticmethod
+    def from_api_data(crypto_id: str, api_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Преобразование данных из API в формат для базы данных"""
+        return {
+            'cryptocurrency_id': crypto_id,
+            'timestamp': datetime.utcnow(),
+            'price_usd': api_data.get('current_price', 0),
+            'volume_24h': api_data.get('total_volume'),
+            'market_cap': api_data.get('market_cap'),
+            'price_change_24h': api_data.get('price_change_24h'),
+            'price_change_percentage_24h': api_data.get('price_change_percentage_24h')
+        }
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\mappers\tvl_history_mapper.py`:
+
+```py
+from typing import Dict, Any
+from datetime import datetime
+from ..models.crypto import TVLHistory
+from ..schemas.defi_schemas import TVLHistoryResponse
+
+
+class TVLHistoryMapper:
+    """Mapper для преобразования данных истории TVL"""
+    
+    @staticmethod
+    def to_response(tvl_history: TVLHistory) -> TVLHistoryResponse:
+        """Преобразование модели в DTO для ответа"""
+        return TVLHistoryResponse(
+            id=tvl_history.id,
+            protocol_id=tvl_history.protocol_id,
+            timestamp=tvl_history.timestamp,
+            tvl=tvl_history.tvl,
+            tvl_change_24h=tvl_history.tvl_change_24h,
+            tvl_change_percentage_24h=tvl_history.tvl_change_percentage_24h
+        )
+    
+    @staticmethod
+    def from_api_data(protocol_id: str, api_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Преобразование данных из API в формат для базы данных"""
+        return {
+            'protocol_id': protocol_id,
+            'timestamp': datetime.utcnow(),
+            'tvl': float(api_data.get('tvl', 0)) if api_data.get('tvl') is not None else 0.0,
+            'tvl_change_24h': api_data.get('change_1d'),
+            'tvl_change_percentage_24h': api_data.get('change_1d')
+        }
+    
+    @staticmethod
+    def from_historical_data(protocol_id: str, timestamp: datetime, tvl: float) -> Dict[str, Any]:
+        """Преобразование исторических данных"""
+        return {
+            'protocol_id': protocol_id,
+            'timestamp': timestamp,
+            'tvl': tvl,
+            'tvl_change_24h': None,
+            'tvl_change_percentage_24h': None
+        }
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\mappers\__init__.py`:
+
+```py
+from .cryptocurrency_mapper import CryptocurrencyMapper
+from .price_history_mapper import PriceHistoryMapper
+from .market_data_mapper import MarketDataMapper
+from .defi_protocol_mapper import DeFiProtocolMapper
+from .tvl_history_mapper import TVLHistoryMapper
+
+__all__ = [
+    "CryptocurrencyMapper",
+    "PriceHistoryMapper",
+    "MarketDataMapper",
+    "DeFiProtocolMapper",
+    "TVLHistoryMapper"
+]
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\models\base.py`:
+
+```py
+from sqlalchemy import MetaData
+from sqlalchemy.orm import DeclarativeBase
+from datetime import datetime
+from typing import Any
+
+
+class Base(DeclarativeBase):
+    metadata = MetaData()
+    
+    def to_dict(self) -> dict[str, Any]:
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\models\crypto.py`:
+
+```py
+from sqlalchemy import Column, String, Float, DateTime, Integer, ForeignKey, Text
+from sqlalchemy.orm import relationship
+from datetime import datetime
+from .base import Base
+
+
+class Cryptocurrency(Base):
+    __tablename__ = "cryptocurrencies"
+    
+    id = Column(String, primary_key=True)
+    symbol = Column(String(20), nullable=False, index=True)
+    name = Column(String(100), nullable=False)
+    market_cap_rank = Column(Integer)
+    description = Column(Text)
+    website = Column(String(255))
+    blockchain = Column(String(50))
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    prices = relationship("PriceHistory", back_populates="cryptocurrency", cascade="all, delete-orphan")
+    market_data = relationship("MarketData", back_populates="cryptocurrency", cascade="all, delete-orphan")
+    defi_protocols = relationship("DeFiProtocol", back_populates="native_token")
+
+
+class PriceHistory(Base):
+    __tablename__ = "price_history"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    cryptocurrency_id = Column(String, ForeignKey("cryptocurrencies.id"), nullable=False)
+    timestamp = Column(DateTime, nullable=False, index=True)
+    price_usd = Column(Float, nullable=False)
+    volume_24h = Column(Float)
+    market_cap = Column(Float)
+    price_change_24h = Column(Float)
+    price_change_percentage_24h = Column(Float)
+    
+    # Relationship
+    cryptocurrency = relationship("Cryptocurrency", back_populates="prices")
+
+
+class MarketData(Base):
+    __tablename__ = "market_data"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    cryptocurrency_id = Column(String, ForeignKey("cryptocurrencies.id"), nullable=False)
+    timestamp = Column(DateTime, nullable=False, index=True)
+    total_supply = Column(Float)
+    circulating_supply = Column(Float)
+    max_supply = Column(Float)
+    ath = Column(Float)  # All-time high
+    atl = Column(Float)  # All-time low
+    ath_date = Column(DateTime)
+    atl_date = Column(DateTime)
+    roi_percentage = Column(Float)
+    
+    # Relationship
+    cryptocurrency = relationship("Cryptocurrency", back_populates="market_data")
+
+
+class DeFiProtocol(Base):
+    __tablename__ = "defi_protocols"
+    
+    id = Column(String, primary_key=True)
+    name = Column(String(100), nullable=False)
+    category = Column(String(50))  # DEX, Lending, Yield Farming, etc.
+    chain = Column(String(50))  # Ethereum, BSC, Polygon, etc.
+    tvl = Column(Float)  # Total Value Locked
+    native_token_id = Column(String, ForeignKey("cryptocurrencies.id"))
+    website = Column(String(255))
+    description = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    native_token = relationship("Cryptocurrency", back_populates="defi_protocols")
+    tvl_history = relationship("TVLHistory", back_populates="protocol", cascade="all, delete-orphan")
+
+
+class TVLHistory(Base):
+    __tablename__ = "tvl_history"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    protocol_id = Column(String, ForeignKey("defi_protocols.id"), nullable=False)
+    timestamp = Column(DateTime, nullable=False, index=True)
+    tvl = Column(Float, nullable=False)
+    tvl_change_24h = Column(Float)
+    tvl_change_percentage_24h = Column(Float)
+    
+    # Relationship
+    protocol = relationship("DeFiProtocol", back_populates="tvl_history")
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\repositories\base_repository.py`:
+
+```py
+from abc import ABC, abstractmethod
+from typing import List, Dict, Any, Optional, Generic, TypeVar
+from datetime import datetime, timedelta
+from ..core.database import clickhouse_manager
+
+T = TypeVar('T')
+
+
+class BaseRepository(ABC, Generic[T]):
+    """Базовый репозиторий с общими методами для работы с ClickHouse"""
+    
+    def __init__(self, table_name: str):
+        self.table_name = table_name
+        self.db = clickhouse_manager
+    
+    def execute_query(self, query: str, parameters: Dict[str, Any] = None) -> Any:
+        """Выполнение SQL запроса"""
+        return self.db.execute_query(query, parameters or {})
+    
+    def insert_data(self, data: List[Dict[str, Any]]) -> None:
+        """Вставка данных в таблицу"""
+        if data:
+            self.db.insert_data(self.table_name, data)
+    
+    def insert_single(self, data: Dict[str, Any]) -> None:
+        """Вставка одной записи"""
+        self.insert_data([data])
+    
+    def find_all(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+        """Получение всех записей с пагинацией"""
+        query = f"""
+        SELECT * FROM {self.table_name}
+        ORDER BY created_at DESC
+        LIMIT %(limit)s OFFSET %(offset)s
+        """
+        result = self.execute_query(query, {'limit': limit, 'offset': offset})
+        return [dict(zip(result.column_names, row)) for row in result.result_rows]
+    
+    def find_by_id(self, entity_id: str) -> Optional[Dict[str, Any]]:
+        """Поиск записи по ID"""
+        query = f"""
+        SELECT * FROM {self.table_name}
+        WHERE id = %(id)s
+        LIMIT 1
+        """
+        result = self.execute_query(query, {'id': entity_id})
+        
+        if result.result_rows:
+            return dict(zip(result.column_names, result.result_rows[0]))
+        return None
+    
+    def count_all(self) -> int:
+        """Подсчет общего количества записей"""
+        query = f"SELECT count(*) as total FROM {self.table_name}"
+        result = self.execute_query(query)
+        return result.result_rows[0][0] if result.result_rows else 0
+    
+    def delete_by_id(self, entity_id: str) -> bool:
+        """Удаление записи по ID (если поддерживается ClickHouse)"""
+        query = f"""
+        ALTER TABLE {self.table_name} DELETE WHERE id = %(id)s
+        """
+        try:
+            self.execute_query(query, {'id': entity_id})
+            return True
+        except Exception:
+            return False
+    
+    def find_by_date_range(
+        self, 
+        start_date: datetime, 
+        end_date: datetime,
+        limit: int = 1000
+    ) -> List[Dict[str, Any]]:
+        """Поиск записей в диапазоне дат (требует поле timestamp)"""
+        query = f"""
+        SELECT * FROM {self.table_name}
+        WHERE timestamp >= %(start_date)s AND timestamp <= %(end_date)s
+        ORDER BY timestamp DESC
+        LIMIT %(limit)s
+        """
+        result = self.execute_query(query, {
+            'start_date': start_date,
+            'end_date': end_date,
+            'limit': limit
+        })
+        return [dict(zip(result.column_names, row)) for row in result.result_rows]
+    
+    def find_recent(self, hours: int = 24, limit: int = 100) -> List[Dict[str, Any]]:
+        """Поиск записей за последние N часов"""
+        start_date = datetime.utcnow() - timedelta(hours=hours)
+        end_date = datetime.utcnow()
+        return self.find_by_date_range(start_date, end_date, limit)
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\repositories\crypto_repository.py`:
+
+```py
+from typing import List, Dict, Any, Optional
+from datetime import datetime, timedelta
+from .searchable_repository import SearchableRepository
+from .filterable_repository import FilterableRepository
+from ..schemas.crypto_schemas import CryptocurrencyFilter, PriceHistoryFilter
+
+
+class CryptocurrencyRepository(SearchableRepository, FilterableRepository):
+    """Репозиторий для работы с криптовалютами"""
+    
+    def __init__(self):
+        super().__init__('cryptocurrencies')
+    
+    def search_cryptocurrencies(self, filter_params: CryptocurrencyFilter) -> List[Dict[str, Any]]:
+        """Поиск криптовалют с фильтрацией"""
+        if filter_params.search:
+            return self.search(
+                search_term=filter_params.search,
+                search_fields=['name', 'symbol'],
+                limit=filter_params.limit,
+                offset=filter_params.offset
+            )
+        else:
+            return self.find_all(
+                limit=filter_params.limit,
+                offset=filter_params.offset
+            )
+    
+    def find_by_symbol(self, symbol: str) -> Optional[Dict[str, Any]]:
+        """Поиск криптовалюты по символу"""
+        query = """
+        SELECT * FROM cryptocurrencies
+        WHERE symbol = %(symbol)s
+        LIMIT 1
+        """
+        result = self.execute_query(query, {'symbol': symbol.lower()})
+        
+        if result.result_rows:
+            return dict(zip(result.column_names, result.result_rows[0]))
+        return None
+    
+    def find_top_by_market_cap(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """Получение топ криптовалют по рыночной капитализации"""
+        query = """
+        SELECT * FROM cryptocurrencies
+        WHERE market_cap_rank IS NOT NULL
+        ORDER BY market_cap_rank ASC
+        LIMIT %(limit)s
+        """
+        result = self.execute_query(query, {'limit': limit})
+        return [dict(zip(result.column_names, row)) for row in result.result_rows]
+    
+    def get_cryptocurrencies_with_latest_price(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+        """Получение криптовалют с последними ценами"""
+        query = """
+        SELECT 
+            c.*,
+            p.price_usd as current_price,
+            p.price_change_24h,
+            p.price_change_percentage_24h,
+            p.market_cap,
+            p.volume_24h,
+            p.timestamp as price_timestamp
+        FROM cryptocurrencies c
+        LEFT JOIN (
+            SELECT 
+                cryptocurrency_id,
+                price_usd,
+                price_change_24h,
+                price_change_percentage_24h,
+                market_cap,
+                volume_24h,
+                timestamp,
+                ROW_NUMBER() OVER (PARTITION BY cryptocurrency_id ORDER BY timestamp DESC) as rn
+            FROM price_history
+        ) p ON c.id = p.cryptocurrency_id AND p.rn = 1
+        ORDER BY c.market_cap_rank ASC NULLS LAST
+        LIMIT %(limit)s OFFSET %(offset)s
+        """
+        result = self.execute_query(query, {'limit': limit, 'offset': offset})
+        return [dict(zip(result.column_names, row)) for row in result.result_rows]
+
+
+
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\repositories\defi_repository.py`:
+
+```py
+from typing import List, Dict, Any, Optional
+from datetime import datetime, timedelta
+from .searchable_repository import SearchableRepository
+from .filterable_repository import FilterableRepository
+from ..schemas.defi_schemas import DeFiProtocolFilter, TVLHistoryFilter
+
+
+class DeFiProtocolRepository(SearchableRepository, FilterableRepository):
+    """Репозиторий для работы с DeFi протоколами"""
+    
+    def __init__(self):
+        super().__init__('defi_protocols')
+    
+    def search_protocols(self, filter_params: DeFiProtocolFilter) -> List[Dict[str, Any]]:
+        """Поиск DeFi протоколов с фильтрацией"""
+        filters = {}
+        
+        if filter_params.category:
+            filters['category'] = filter_params.category
+        
+        if filter_params.chain:
+            filters['chain'] = filter_params.chain
+        
+        return self.find_with_filters(
+            filters=filters,
+            limit=filter_params.limit,
+            offset=filter_params.offset,
+            order_by='tvl',
+            order_direction='DESC'
+        )
+    
+    def find_by_category(self, category: str, limit: int = 50) -> List[Dict[str, Any]]:
+        """Поиск протоколов по категории"""
+        query = """
+        SELECT * FROM defi_protocols
+        WHERE category = %(category)s
+        ORDER BY tvl DESC NULLS LAST
+        LIMIT %(limit)s
+        """
+        result = self.execute_query(query, {'category': category, 'limit': limit})
+        return [dict(zip(result.column_names, row)) for row in result.result_rows]
+    
+    def find_by_chain(self, chain: str, limit: int = 50) -> List[Dict[str, Any]]:
+        """Поиск протоколов по блокчейну"""
+        query = """
+        SELECT * FROM defi_protocols
+        WHERE chain = %(chain)s
+        ORDER BY tvl DESC NULLS LAST
+        LIMIT %(limit)s
+        """
+        result = self.execute_query(query, {'chain': chain, 'limit': limit})
+        return [dict(zip(result.column_names, row)) for row in result.result_rows]
+    
+    def get_top_by_tvl(self, limit: int = 20) -> List[Dict[str, Any]]:
+        """Получение топ протоколов по TVL"""
+        query = """
+        SELECT * FROM defi_protocols
+        WHERE tvl > 0
+        ORDER BY tvl DESC
+        LIMIT %(limit)s
+        """
+        result = self.execute_query(query, {'limit': limit})
+        return [dict(zip(result.column_names, row)) for row in result.result_rows]
+    
+    def get_protocols_with_latest_tvl(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+        """Получение протоколов с последними данными TVL"""
+        query = """
+        SELECT 
+            dp.*,
+            tvl_h.tvl as current_tvl,
+            tvl_h.tvl_change_24h,
+            tvl_h.tvl_change_percentage_24h,
+            tvl_h.timestamp as tvl_timestamp
+        FROM defi_protocols dp
+        LEFT JOIN (
+            SELECT 
+                protocol_id,
+                tvl,
+                tvl_change_24h,
+                tvl_change_percentage_24h,
+                timestamp,
+                ROW_NUMBER() OVER (PARTITION BY protocol_id ORDER BY timestamp DESC) as rn
+            FROM tvl_history
+        ) tvl_h ON dp.id = tvl_h.protocol_id AND tvl_h.rn = 1
+        ORDER BY COALESCE(tvl_h.tvl, dp.tvl, 0) DESC
+        LIMIT %(limit)s OFFSET %(offset)s
+        """
+        result = self.execute_query(query, {'limit': limit, 'offset': offset})
+        return [dict(zip(result.column_names, row)) for row in result.result_rows]
+    
+    def get_categories_summary(self) -> List[Dict[str, Any]]:
+        """Получение сводной статистики по категориям"""
+        query = """
+        SELECT 
+            category,
+            count(*) as protocols_count,
+            sum(tvl) as total_tvl,
+            avg(tvl) as avg_tvl,
+            max(tvl) as max_tvl
+        FROM defi_protocols
+        WHERE tvl > 0
+        GROUP BY category
+        ORDER BY total_tvl DESC
+        """
+        result = self.execute_query(query)
+        return [dict(zip(result.column_names, row)) for row in result.result_rows]
+    
+    def get_chains_summary(self) -> List[Dict[str, Any]]:
+        """Получение сводной статистики по блокчейнам"""
+        query = """
+        SELECT 
+            chain,
+            count(*) as protocols_count,
+            sum(tvl) as total_tvl,
+            avg(tvl) as avg_tvl,
+            max(tvl) as max_tvl
+        FROM defi_protocols
+        WHERE tvl > 0
+        GROUP BY chain
+        ORDER BY total_tvl DESC
+        """
+        result = self.execute_query(query)
+        return [dict(zip(result.column_names, row)) for row in result.result_rows]
+
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\repositories\filterable_repository.py`:
+
+```py
+from typing import List, Dict, Any, TypeVar
+from .base_repository import BaseRepository
+
+T = TypeVar('T')
+
+
+class FilterableRepository(BaseRepository[T]):
+    """Репозиторий с поддержкой фильтрации"""
+    
+    def find_with_filters(
+        self,
+        filters: Dict[str, Any],
+        limit: int = 100,
+        offset: int = 0,
+        order_by: str = 'created_at',
+        order_direction: str = 'DESC'
+    ) -> List[Dict[str, Any]]:
+        """Поиск с фильтрами"""
+        conditions = []
+        parameters = {'limit': limit, 'offset': offset}
+        
+        for field, value in filters.items():
+            if value is not None:
+                condition_key = f"filter_{field}"
+                conditions.append(f"{field} = %({condition_key})s")
+                parameters[condition_key] = value
+        
+        where_clause = ""
+        if conditions:
+            where_clause = "WHERE " + " AND ".join(conditions)
+        
+        query = f"""
+        SELECT * FROM {self.table_name}
+        {where_clause}
+        ORDER BY {order_by} {order_direction}
+        LIMIT %(limit)s OFFSET %(offset)s
+        """
+        
+        result = self.execute_query(query, parameters)
+        return [dict(zip(result.column_names, row)) for row in result.result_rows]
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\repositories\market_data_repository.py`:
+
+```py
+from typing import List, Dict, Any
+from datetime import datetime, timedelta
+from .filterable_repository import FilterableRepository
+
+
+class MarketDataRepository(FilterableRepository):
+    """Репозиторий для работы с рыночными данными"""
+    
+    def __init__(self):
+        super().__init__('market_data')
+    
+    def find_by_crypto_id(self, crypto_id: str, days: int = 30, limit: int = 1000) -> List[Dict[str, Any]]:
+        """Получение рыночных данных для криптовалюты"""
+        start_date = datetime.utcnow() - timedelta(days=days)
+        
+        query = """
+        SELECT * FROM market_data
+        WHERE cryptocurrency_id = %(crypto_id)s
+        AND timestamp >= %(start_date)s
+        ORDER BY timestamp DESC
+        LIMIT %(limit)s
+        """
+        
+        result = self.execute_query(query, {
+            'crypto_id': crypto_id,
+            'start_date': start_date,
+            'limit': limit
+        })
+        
+        return [dict(zip(result.column_names, row)) for row in result.result_rows]
+    
+    def get_market_summary(self) -> Dict[str, Any]:
+        """Получение сводной рыночной статистики"""
+        query = """
+        SELECT 
+            count(DISTINCT cryptocurrency_id) as total_assets,
+            sum(circulating_supply * (
+                SELECT price_usd 
+                FROM price_history ph 
+                WHERE ph.cryptocurrency_id = md.cryptocurrency_id 
+                ORDER BY timestamp DESC 
+                LIMIT 1
+            )) as total_market_cap,
+            avg(roi_percentage) as avg_roi
+        FROM market_data md
+        WHERE timestamp >= (now() - INTERVAL 1 DAY)
+        """
+        
+        result = self.execute_query(query)
+        if result.result_rows:
+            return dict(zip(result.column_names, result.result_rows[0]))
+        return {}
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\repositories\price_history_repository.py`:
+
+```py
+from typing import List, Dict, Any
+from datetime import datetime, timedelta
+from .filterable_repository import FilterableRepository
+
+
+class PriceHistoryRepository(FilterableRepository):
+    """Репозиторий для работы с историей цен"""
+    
+    def __init__(self):
+        super().__init__('price_history')
+    
+    def find_by_crypto_id(self, crypto_id: str, days: int = 30, limit: int = 1000) -> List[Dict[str, Any]]:
+        """Получение истории цен для криптовалюты"""
+        start_date = datetime.utcnow() - timedelta(days=days)
+        
+        query = """
+        SELECT * FROM price_history
+        WHERE cryptocurrency_id = %(crypto_id)s
+        AND timestamp >= %(start_date)s
+        ORDER BY timestamp DESC
+        LIMIT %(limit)s
+        """
+        
+        result = self.execute_query(query, {
+            'crypto_id': crypto_id,
+            'start_date': start_date,
+            'limit': limit
+        })
+        
+        return [dict(zip(result.column_names, row)) for row in result.result_rows]
+    
+    def get_latest_prices(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """Получение последних цен для всех криптовалют"""
+        query = """
+        SELECT 
+            ph.*,
+            c.name,
+            c.symbol
+        FROM price_history ph
+        JOIN cryptocurrencies c ON ph.cryptocurrency_id = c.id
+        WHERE ph.timestamp >= (now() - INTERVAL 1 DAY)
+        ORDER BY ph.timestamp DESC
+        LIMIT %(limit)s
+        """
+        
+        result = self.execute_query(query, {'limit': limit})
+        return [dict(zip(result.column_names, row)) for row in result.result_rows]
+    
+    def get_top_gainers(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """Получение топ растущих криптовалют за 24ч"""
+        query = """
+        SELECT 
+            c.name,
+            c.symbol,
+            p.price_usd,
+            p.price_change_percentage_24h
+        FROM price_history p
+        JOIN cryptocurrencies c ON p.cryptocurrency_id = c.id
+        WHERE p.timestamp >= (now() - INTERVAL 1 DAY)
+        AND p.price_change_percentage_24h > 0
+        ORDER BY p.price_change_percentage_24h DESC
+        LIMIT %(limit)s
+        """
+        
+        result = self.execute_query(query, {'limit': limit})
+        return [dict(zip(result.column_names, row)) for row in result.result_rows]
+    
+    def get_top_losers(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """Получение топ падающих криптовалют за 24ч"""
+        query = """
+        SELECT 
+            c.name,
+            c.symbol,
+            p.price_usd,
+            p.price_change_percentage_24h
+        FROM price_history p
+        JOIN cryptocurrencies c ON p.cryptocurrency_id = c.id
+        WHERE p.timestamp >= (now() - INTERVAL 1 DAY)
+        AND p.price_change_percentage_24h < 0
+        ORDER BY p.price_change_percentage_24h ASC
+        LIMIT %(limit)s
+        """
+        
+        result = self.execute_query(query, {'limit': limit})
+        return [dict(zip(result.column_names, row)) for row in result.result_rows]
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\repositories\searchable_repository.py`:
+
+```py
+from typing import List, Dict, Any, TypeVar
+from .base_repository import BaseRepository
+
+T = TypeVar('T')
+
+
+class SearchableRepository(BaseRepository[T]):
+    """Репозиторий с поддержкой поиска"""
+    
+    def search(
+        self, 
+        search_term: str, 
+        search_fields: List[str],
+        limit: int = 100, 
+        offset: int = 0
+    ) -> List[Dict[str, Any]]:
+        """Поиск по указанным полям"""
+        # Создаем условие поиска для каждого поля
+        search_conditions = []
+        for field in search_fields:
+            search_conditions.append(f"{field} ILIKE %(search_term)s")
+        
+        search_clause = " OR ".join(search_conditions)
+        
+        query = f"""
+        SELECT * FROM {self.table_name}
+        WHERE {search_clause}
+        ORDER BY created_at DESC
+        LIMIT %(limit)s OFFSET %(offset)s
+        """
+        
+        result = self.execute_query(query, {
+            'search_term': f'%{search_term}%',
+            'limit': limit,
+            'offset': offset
+        })
+        
+        return [dict(zip(result.column_names, row)) for row in result.result_rows]
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\repositories\tvl_history_repository.py`:
+
+```py
+from typing import List, Dict, Any
+from datetime import datetime, timedelta
+from .filterable_repository import FilterableRepository
+
+
+class TVLHistoryRepository(FilterableRepository):
+    """Репозиторий для работы с историей TVL"""
+    
+    def __init__(self):
+        super().__init__('tvl_history')
+    
+    def find_by_protocol_id(self, protocol_id: str, days: int = 30, limit: int = 1000) -> List[Dict[str, Any]]:
+        """Получение истории TVL для протокола"""
+        start_date = datetime.utcnow() - timedelta(days=days)
+        
+        query = """
+        SELECT * FROM tvl_history
+        WHERE protocol_id = %(protocol_id)s
+        AND timestamp >= %(start_date)s
+        ORDER BY timestamp DESC
+        LIMIT %(limit)s
+        """
+        
+        result = self.execute_query(query, {
+            'protocol_id': protocol_id,
+            'start_date': start_date,
+            'limit': limit
+        })
+        
+        return [dict(zip(result.column_names, row)) for row in result.result_rows]
+    
+    def get_total_tvl_history(self, days: int = 30) -> List[Dict[str, Any]]:
+        """Получение истории общего TVL по дням"""
+        start_date = datetime.utcnow() - timedelta(days=days)
+        
+        query = """
+        SELECT 
+            toDate(timestamp) as date,
+            sum(tvl) as total_tvl,
+            count(DISTINCT protocol_id) as protocols_count
+        FROM tvl_history
+        WHERE timestamp >= %(start_date)s
+        GROUP BY toDate(timestamp)
+        ORDER BY date DESC
+        """
+        
+        result = self.execute_query(query, {'start_date': start_date})
+        return [dict(zip(result.column_names, row)) for row in result.result_rows]
+    
+    def get_tvl_changes_24h(self) -> List[Dict[str, Any]]:
+        """Получение изменений TVL за 24ч для всех протоколов"""
+        query = """
+        SELECT 
+            th.*,
+            dp.name,
+            dp.category,
+            dp.chain
+        FROM tvl_history th
+        JOIN defi_protocols dp ON th.protocol_id = dp.id
+        WHERE th.timestamp >= (now() - INTERVAL 1 DAY)
+        AND th.tvl_change_percentage_24h IS NOT NULL
+        ORDER BY th.tvl_change_percentage_24h DESC
+        """
+        
+        result = self.execute_query(query)
+        return [dict(zip(result.column_names, row)) for row in result.result_rows]
+    
+    def get_top_tvl_gainers(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """Получение протоколов с наибольшим ростом TVL за 24ч"""
+        query = """
+        SELECT 
+            dp.name,
+            dp.category,
+            dp.chain,
+            th.tvl,
+            th.tvl_change_24h,
+            th.tvl_change_percentage_24h
+        FROM tvl_history th
+        JOIN defi_protocols dp ON th.protocol_id = dp.id
+        WHERE th.timestamp >= (now() - INTERVAL 1 DAY)
+        AND th.tvl_change_percentage_24h > 0
+        ORDER BY th.tvl_change_percentage_24h DESC
+        LIMIT %(limit)s
+        """
+        
+        result = self.execute_query(query, {'limit': limit})
+        return [dict(zip(result.column_names, row)) for row in result.result_rows]
+    
+    def get_tvl_summary(self) -> Dict[str, Any]:
+        """Получение сводной статистики TVL"""
+        query = """
+        SELECT 
+            sum(tvl) as total_tvl,
+            count(DISTINCT protocol_id) as total_protocols,
+            avg(tvl) as avg_tvl,
+            max(tvl) as max_tvl,
+            min(tvl) as min_tvl
+        FROM tvl_history
+        WHERE timestamp >= (now() - INTERVAL 1 DAY)
+        """
+        
+        result = self.execute_query(query)
+        if result.result_rows:
+            return dict(zip(result.column_names, result.result_rows[0]))
+        return {}
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\repositories\__init__.py`:
+
+```py
+from .base_repository import BaseRepository
+from .searchable_repository import SearchableRepository
+from .filterable_repository import FilterableRepository
+from .crypto_repository import CryptocurrencyRepository
+from .price_history_repository import PriceHistoryRepository
+from .market_data_repository import MarketDataRepository
+from .defi_repository import DeFiProtocolRepository
+from .tvl_history_repository import TVLHistoryRepository
+
+__all__ = [
+    "BaseRepository",
+    "SearchableRepository", 
+    "FilterableRepository",
+    "CryptocurrencyRepository",
+    "PriceHistoryRepository",
+    "MarketDataRepository",
+    "DeFiProtocolRepository",
+    "TVLHistoryRepository"
+]
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\scheduler.py`:
+
+```py
+import asyncio
+import logging
+from datetime import datetime
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+from .services.batch_processor import data_processor
+from .core.config import settings
+
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+class DataScheduler:
+    def __init__(self):
+        self.scheduler = AsyncIOScheduler()
+        
+    async def start(self):
+        # Schedule data refresh every 15 minutes
+        self.scheduler.add_job(
+            self.run_data_refresh,
+            CronTrigger(minute=f"*/{settings.fetch_interval_minutes}"),
+            id='data_refresh',
+            name='Crypto Data Refresh',
+            max_instances=1
+        )
+        
+        # Schedule daily full data processing at 00:00 UTC
+        self.scheduler.add_job(
+            self.run_full_data_processing,
+            CronTrigger(hour=0, minute=0),
+            id='full_data_processing',
+            name='Full Data Processing',
+            max_instances=1
+        )
+        
+        # Schedule weekly cleanup at Sunday 02:00 UTC
+        self.scheduler.add_job(
+            self.cleanup_old_data,
+            CronTrigger(day_of_week='sun', hour=2, minute=0),
+            id='weekly_cleanup',
+            name='Weekly Data Cleanup',
+            max_instances=1
+        )
+        
+        self.scheduler.start()
+        logger.info("Data scheduler started")
+        
+        # Run initial data load
+        await self.run_data_refresh()
+        
+        # Keep the scheduler running
+        try:
+            while True:
+                await asyncio.sleep(60)
+        except KeyboardInterrupt:
+            logger.info("Scheduler stopped by user")
+        finally:
+            self.scheduler.shutdown()
+    
+    async def run_data_refresh(self):
+        logger.info("Starting scheduled data refresh")
+        try:
+            await data_processor.process_cryptocurrency_data()
+            await data_processor.process_defi_data()
+            logger.info("Scheduled data refresh completed successfully")
+        except Exception as e:
+            logger.error(f"Error during scheduled data refresh: {e}")
+    
+    async def run_full_data_processing(self):
+        logger.info("Starting full data processing")
+        try:
+            await data_processor.run_full_data_processing()
+            logger.info("Full data processing completed successfully")
+        except Exception as e:
+            logger.error(f"Error during full data processing: {e}")
+    
+    async def cleanup_old_data(self):
+        logger.info("Starting weekly data cleanup")
+        try:
+            from .core.database import clickhouse_manager
+            
+            # Remove data older than 1 year
+            cleanup_queries = [
+                "DELETE FROM price_history WHERE timestamp < (now() - INTERVAL 1 YEAR)",
+                "DELETE FROM market_data WHERE timestamp < (now() - INTERVAL 1 YEAR)",
+                "DELETE FROM tvl_history WHERE timestamp < (now() - INTERVAL 1 YEAR)",
+                "OPTIMIZE TABLE price_history FINAL",
+                "OPTIMIZE TABLE market_data FINAL",
+                "OPTIMIZE TABLE tvl_history FINAL"
+            ]
+            
+            for query in cleanup_queries:
+                try:
+                    clickhouse_manager.execute_query(query)
+                    logger.info(f"Executed cleanup query: {query}")
+                except Exception as e:
+                    logger.error(f"Error executing cleanup query '{query}': {e}")
+            
+            logger.info("Weekly data cleanup completed successfully")
+        except Exception as e:
+            logger.error(f"Error during weekly cleanup: {e}")
+
+
+async def main():
+    scheduler = DataScheduler()
+    await scheduler.start()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\schemas\crypto_schemas.py`:
+
+```py
+from datetime import datetime
+from typing import Optional, List
+from pydantic import BaseModel, Field
+from dataclasses import dataclass
+
+
+class CryptocurrencyBase(BaseModel):
+    symbol: str = Field(..., min_length=1, max_length=20)
+    name: str = Field(..., min_length=1, max_length=100)
+    market_cap_rank: Optional[int] = None
+    description: Optional[str] = None
+    website: Optional[str] = None
+    blockchain: Optional[str] = None
+
+
+class CryptocurrencyCreate(CryptocurrencyBase):
+    id: str = Field(..., min_length=1)
+
+
+class CryptocurrencyUpdate(BaseModel):
+    symbol: Optional[str] = None
+    name: Optional[str] = None
+    market_cap_rank: Optional[int] = None
+    description: Optional[str] = None
+    website: Optional[str] = None
+    blockchain: Optional[str] = None
+
+
+class CryptocurrencyResponse(CryptocurrencyBase):
+    id: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class PriceHistoryBase(BaseModel):
+    timestamp: datetime
+    price_usd: float = Field(..., ge=0)
+    volume_24h: Optional[float] = Field(None, ge=0)
+    market_cap: Optional[float] = Field(None, ge=0)
+    price_change_24h: Optional[float] = None
+    price_change_percentage_24h: Optional[float] = None
+
+
+class PriceHistoryCreate(PriceHistoryBase):
+    cryptocurrency_id: str
+
+
+class PriceHistoryResponse(PriceHistoryBase):
+    id: int
+    cryptocurrency_id: str
+
+    class Config:
+        from_attributes = True
+
+
+class MarketDataBase(BaseModel):
+    timestamp: datetime
+    total_supply: Optional[float] = Field(None, ge=0)
+    circulating_supply: Optional[float] = Field(None, ge=0)
+    max_supply: Optional[float] = Field(None, ge=0)
+    ath: Optional[float] = Field(None, ge=0)
+    atl: Optional[float] = Field(None, ge=0)
+    ath_date: Optional[datetime] = None
+    atl_date: Optional[datetime] = None
+    roi_percentage: Optional[float] = None
+
+
+class MarketDataCreate(MarketDataBase):
+    cryptocurrency_id: str
+
+
+class MarketDataResponse(MarketDataBase):
+    id: int
+    cryptocurrency_id: str
+
+    class Config:
+        from_attributes = True
+
+
+class CryptocurrencyDetailResponse(CryptocurrencyResponse):
+    price_history: List[PriceHistoryResponse] = []
+    market_data: List[MarketDataResponse] = []
+
+
+# Query filters
+class CryptocurrencyFilter(BaseModel):
+    search: Optional[str] = None
+    limit: int = Field(default=100, ge=1, le=1000)
+    offset: int = Field(default=0, ge=0)
+
+
+class PriceHistoryFilter(BaseModel):
+    cryptocurrency_id: str
+    days: int = Field(default=30, ge=1, le=365)
+    limit: int = Field(default=1000, ge=1, le=10000)
+
+
+@dataclass
+class CryptocurrencyListItem:
+    """Dataclass для отображения в списке криптовалют"""
+    id: str
+    symbol: str
+    name: str
+    market_cap_rank: Optional[int]
+    current_price: Optional[float]
+    price_change_24h: Optional[float]
+    price_change_percentage_24h: Optional[float]
+    market_cap: Optional[float]
+    updated_at: datetime
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\schemas\defi_schemas.py`:
+
+```py
+from datetime import datetime
+from typing import Optional, List
+from pydantic import BaseModel, Field
+from dataclasses import dataclass
+
+
+class DeFiProtocolBase(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+    category: Optional[str] = Field(None, max_length=50)
+    chain: Optional[str] = Field(None, max_length=50)
+    tvl: Optional[float] = Field(None, ge=0)
+    native_token_id: Optional[str] = None
+    website: Optional[str] = None
+    description: Optional[str] = None
+
+
+class DeFiProtocolCreate(DeFiProtocolBase):
+    id: str = Field(..., min_length=1)
+
+
+class DeFiProtocolUpdate(BaseModel):
+    name: Optional[str] = None
+    category: Optional[str] = None
+    chain: Optional[str] = None
+    tvl: Optional[float] = None
+    native_token_id: Optional[str] = None
+    website: Optional[str] = None
+    description: Optional[str] = None
+
+
+class DeFiProtocolResponse(DeFiProtocolBase):
+    id: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class TVLHistoryBase(BaseModel):
+    timestamp: datetime
+    tvl: float = Field(..., ge=0)
+    tvl_change_24h: Optional[float] = None
+    tvl_change_percentage_24h: Optional[float] = None
+
+
+class TVLHistoryCreate(TVLHistoryBase):
+    protocol_id: str
+
+
+class TVLHistoryResponse(TVLHistoryBase):
+    id: int
+    protocol_id: str
+
+    class Config:
+        from_attributes = True
+
+
+class DeFiProtocolDetailResponse(DeFiProtocolResponse):
+    tvl_history: List[TVLHistoryResponse] = []
+
+
+# Query filters
+class DeFiProtocolFilter(BaseModel):
+    category: Optional[str] = None
+    chain: Optional[str] = None
+    limit: int = Field(default=100, ge=1, le=1000)
+    offset: int = Field(default=0, ge=0)
+
+
+class TVLHistoryFilter(BaseModel):
+    protocol_id: str
+    days: int = Field(default=30, ge=1, le=365)
+    limit: int = Field(default=1000, ge=1, le=10000)
+
+
+@dataclass
+class DeFiProtocolListItem:
+    """Dataclass для отображения в списке DeFi протоколов"""
+    id: str
+    name: str
+    category: Optional[str]
+    chain: Optional[str]
+    tvl: Optional[float]
+    tvl_change_24h: Optional[float]
+    tvl_change_percentage_24h: Optional[float]
+    updated_at: datetime
+
+
+@dataclass
+class TVLSummary:
+    """Dataclass для суммарной статистики TVL"""
+    total_tvl: float
+    protocols_count: int
+    top_protocol: Optional[str]
+    top_protocol_tvl: Optional[float]
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\services\batch_processor.py`:
+
+```py
+import asyncio
+from datetime import datetime
+from typing import List, Dict, Any, Callable
+from concurrent.futures import ThreadPoolExecutor
+import logging
+from ..core.config import settings
+from ..core.database import clickhouse_manager
+from .data_fetcher import CoinGeckoFetcher, DeFiDataFetcher
+
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+class BatchProcessor:
+    def __init__(self):
+        self.batch_size = settings.batch_size
+        self.max_workers = 5
+    
+    async def process_in_batches(
+        self, 
+        data: List[Any], 
+        processor_func: Callable,
+        batch_size: int = None
+    ) -> List[Any]:
+        batch_size = batch_size or self.batch_size
+        results = []
+        
+        for i in range(0, len(data), batch_size):
+            batch = data[i:i + batch_size]
+            batch_results = await processor_func(batch)
+            results.extend(batch_results)
+            
+            # Small delay to prevent rate limiting
+            await asyncio.sleep(0.1)
+        
+        return results
+    
+    async def concurrent_process(
+        self, 
+        items: List[Any], 
+        processor_func: Callable,
+        max_workers: int = None
+    ) -> List[Any]:
+        max_workers = max_workers or self.max_workers
+        semaphore = asyncio.Semaphore(max_workers)
+        
+        async def process_with_semaphore(item):
+            async with semaphore:
+                return await processor_func(item)
+        
+        tasks = [process_with_semaphore(item) for item in items]
+        return await asyncio.gather(*tasks, return_exceptions=True)
+
+
+class DataProcessor:
+    def __init__(self):
+        self.batch_processor = BatchProcessor()
+        self.coingecko_fetcher = CoinGeckoFetcher()
+        self.defi_fetcher = DeFiDataFetcher()
+    
+    async def process_cryptocurrency_data(self) -> None:
+        logger.info("Starting cryptocurrency data processing...")
+        
+        async with self.coingecko_fetcher as fetcher:
+            # Fetch market data
+            market_data = await fetcher.fetch_market_data(per_page=250)
+            
+            if not market_data:
+                logger.error("Failed to fetch market data")
+                return
+            
+            # Process cryptocurrencies
+            cryptocurrencies = []
+            price_history = []
+            market_data_records = []
+            
+            for coin in market_data:
+                # Cryptocurrency record
+                crypto_record = {
+                    'id': coin['id'],
+                    'symbol': coin['symbol'],
+                    'name': coin['name'],
+                    'market_cap_rank': coin.get('market_cap_rank'),
+                    'created_at': datetime.utcnow(),
+                    'updated_at': datetime.utcnow()
+                }
+                cryptocurrencies.append(crypto_record)
+                
+                # Price history record
+                price_record = {
+                    'id': hash(f"{coin['id']}_{datetime.utcnow().isoformat()}") % (2**63),
+                    'cryptocurrency_id': coin['id'],
+                    'timestamp': datetime.utcnow(),
+                    'price_usd': coin.get('current_price', 0),
+                    'volume_24h': coin.get('total_volume'),
+                    'market_cap': coin.get('market_cap'),
+                    'price_change_24h': coin.get('price_change_24h'),
+                    'price_change_percentage_24h': coin.get('price_change_percentage_24h')
+                }
+                price_history.append(price_record)
+                
+                # Market data record
+                market_record = {
+                    'id': hash(f"{coin['id']}_market_{datetime.utcnow().isoformat()}") % (2**63),
+                    'cryptocurrency_id': coin['id'],
+                    'timestamp': datetime.utcnow(),
+                    'total_supply': coin.get('total_supply'),
+                    'circulating_supply': coin.get('circulating_supply'),
+                    'max_supply': coin.get('max_supply'),
+                    'ath': coin.get('ath'),
+                    'atl': coin.get('atl'),
+                    'ath_date': datetime.fromisoformat(coin['ath_date'].replace('Z', '+00:00')) if coin.get('ath_date') else None,
+                    'atl_date': datetime.fromisoformat(coin['atl_date'].replace('Z', '+00:00')) if coin.get('atl_date') else None
+                }
+                market_data_records.append(market_record)
+            
+            # Insert data in batches
+            await self.insert_data_batch('cryptocurrencies', cryptocurrencies)
+            await self.insert_data_batch('price_history', price_history)
+            await self.insert_data_batch('market_data', market_data_records)
+            
+            logger.info(f"Processed {len(cryptocurrencies)} cryptocurrencies")
+    
+    async def process_defi_data(self) -> None:
+        logger.info("Starting DeFi data processing...")
+        
+        async with self.defi_fetcher as fetcher:
+            # Fetch protocols data
+            protocols = await fetcher.fetch_protocols()
+            
+            if not protocols:
+                logger.error("Failed to fetch DeFi protocols data")
+                return
+            
+            defi_protocols = []
+            tvl_history = []
+            
+            for protocol in protocols[:100]:  # Limit to top 100 for initial load
+                # DeFi protocol record
+                protocol_record = {
+                    'id': protocol.get('id', protocol['name'].lower().replace(' ', '-')),
+                    'name': protocol['name'],
+                    'category': protocol.get('category', 'Unknown'),
+                    'chain': protocol.get('chain', 'Unknown'),
+                    'tvl': protocol.get('tvl', 0),
+                    'created_at': datetime.utcnow(),
+                    'updated_at': datetime.utcnow()
+                }
+                defi_protocols.append(protocol_record)
+                
+                # TVL history record
+                tvl_record = {
+                    'id': hash(f"{protocol_record['id']}_tvl_{datetime.utcnow().isoformat()}") % (2**63),
+                    'protocol_id': protocol_record['id'],
+                    'timestamp': datetime.utcnow(),
+                    'tvl': protocol.get('tvl', 0),
+                    'tvl_change_24h': protocol.get('change_1d', 0),
+                    'tvl_change_percentage_24h': protocol.get('change_1d', 0)
+                }
+                tvl_history.append(tvl_record)
+            
+            # Insert data in batches
+            await self.insert_data_batch('defi_protocols', defi_protocols)
+            await self.insert_data_batch('tvl_history', tvl_history)
+            
+            logger.info(f"Processed {len(defi_protocols)} DeFi protocols")
+    
+    async def insert_data_batch(self, table: str, data: List[Dict[str, Any]]) -> None:
+        if not data:
+            return
+        
+        try:
+            # Process data in batches to avoid memory issues
+            await self.batch_processor.process_in_batches(
+                data, 
+                lambda batch: self._insert_batch_to_clickhouse(table, batch)
+            )
+        except Exception as e:
+            logger.error(f"Error inserting data to {table}: {e}")
+    
+    async def _insert_batch_to_clickhouse(self, table: str, batch: List[Dict[str, Any]]) -> List[Any]:
+        try:
+            clickhouse_manager.insert_data(table, batch)
+            return batch
+        except Exception as e:
+            logger.error(f"Error inserting batch to {table}: {e}")
+            return []
+    
+    async def run_full_data_processing(self) -> None:
+        logger.info("Starting full data processing pipeline...")
+        
+        # Initialize database and tables
+        clickhouse_manager.create_database()
+        clickhouse_manager.create_tables()
+        
+        # Process data concurrently
+        tasks = [
+            self.process_cryptocurrency_data(),
+            self.process_defi_data()
+        ]
+        
+        await asyncio.gather(*tasks, return_exceptions=True)
+        logger.info("Data processing pipeline completed!")
+
+
+data_processor = DataProcessor()
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\services\data_fetcher.py`:
+
+```py
+import asyncio
+import httpx
+from abc import ABC, abstractmethod
+from datetime import datetime
+from typing import List, Dict, Any, Optional
+from ..core.config import settings
+from ..core.database import clickhouse_manager
+
+
+class DataFetcherBase(ABC):
+    def __init__(self):
+        self.client = None
+        self.max_retries = settings.max_retries
+        self.timeout = settings.request_timeout
+    
+    async def __aenter__(self):
+        self.client = httpx.AsyncClient(timeout=self.timeout)
+        return self
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if self.client:
+            await self.client.aclose()
+    
+    @abstractmethod
+    async def fetch_data(self, **kwargs) -> List[Dict[str, Any]]:
+        pass
+    
+    async def retry_request(self, url: str, params: Dict = None) -> Optional[Dict]:
+        for attempt in range(self.max_retries):
+            try:
+                response = await self.client.get(url, params=params)
+                response.raise_for_status()
+                return response.json()
+            except httpx.RequestError as e:
+                if attempt == self.max_retries - 1:
+                    raise e
+                await asyncio.sleep(2 ** attempt)
+        return None
+
+
+class CoinGeckoFetcher(DataFetcherBase):
+    def __init__(self):
+        super().__init__()
+        self.base_url = settings.coingecko_api_url
+        self.api_key = settings.coingecko_api_key
+    
+    async def fetch_cryptocurrencies_list(self) -> List[Dict[str, Any]]:
+        url = f"{self.base_url}/coins/list"
+        params = {"include_platform": "true"}
+        
+        if self.api_key:
+            params["x_cg_demo_api_key"] = self.api_key
+            
+        data = await self.retry_request(url, params)
+        return data if data else []
+    
+    async def fetch_cryptocurrency_details(self, coin_id: str) -> Optional[Dict[str, Any]]:
+        url = f"{self.base_url}/coins/{coin_id}"
+        params = {
+            "localization": "false",
+            "tickers": "false",
+            "market_data": "true",
+            "community_data": "false",
+            "developer_data": "false",
+            "sparkline": "false"
+        }
+        
+        if self.api_key:
+            params["x_cg_demo_api_key"] = self.api_key
+            
+        return await self.retry_request(url, params)
+    
+    async def fetch_market_data(self, vs_currency: str = "usd", per_page: int = 100, page: int = 1) -> List[Dict[str, Any]]:
+        url = f"{self.base_url}/coins/markets"
+        params = {
+            "vs_currency": vs_currency,
+            "order": "market_cap_desc",
+            "per_page": per_page,
+            "page": page,
+            "sparkline": "false",
+            "price_change_percentage": "24h"
+        }
+        
+        if self.api_key:
+            params["x_cg_demo_api_key"] = self.api_key
+            
+        data = await self.retry_request(url, params)
+        return data if data else []
+    
+    async def fetch_price_history(self, coin_id: str, vs_currency: str = "usd", days: int = 30) -> Optional[Dict[str, Any]]:
+        url = f"{self.base_url}/coins/{coin_id}/market_chart"
+        params = {
+            "vs_currency": vs_currency,
+            "days": days,
+            "interval": "daily"
+        }
+        
+        if self.api_key:
+            params["x_cg_demo_api_key"] = self.api_key
+            
+        return await self.retry_request(url, params)
+    
+    async def fetch_data(self, **kwargs) -> List[Dict[str, Any]]:
+        return await self.fetch_market_data()
+
+
+class DeFiDataFetcher(DataFetcherBase):
+    def __init__(self):
+        super().__init__()
+        self.defillama_base_url = "https://api.llama.fi"
+    
+    async def fetch_protocols(self) -> List[Dict[str, Any]]:
+        url = f"{self.defillama_base_url}/protocols"
+        data = await self.retry_request(url)
+        return data if data else []
+    
+    async def fetch_protocol_tvl_history(self, protocol: str) -> Optional[Dict[str, Any]]:
+        url = f"{self.defillama_base_url}/protocol/{protocol}"
+        return await self.retry_request(url)
+    
+    async def fetch_chains_tvl(self) -> List[Dict[str, Any]]:
+        url = f"{self.defillama_base_url}/chains"
+        data = await self.retry_request(url)
+        return data if data else []
+    
+    async def fetch_data(self, **kwargs) -> List[Dict[str, Any]]:
+        return await self.fetch_protocols()
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\static\css\main.css`:
+
+```css
+/* Custom styles for Crypto DeFi Analyzer */
+
+:root {
+    --primary-color: #007bff;
+    --secondary-color: #6c757d;
+    --success-color: #28a745;
+    --warning-color: #ffc107;
+    --danger-color: #dc3545;
+    --info-color: #17a2b8;
+    --dark-color: #343a40;
+    --light-color: #f8f9fa;
+}
+
+body {
+    background-color: #f8f9fa;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.navbar-brand {
+    font-weight: bold;
+    font-size: 1.5rem;
+}
+
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    border: 1px solid rgba(0, 0, 0, 0.125);
+    transition: box-shadow 0.15s ease-in-out;
+}
+
+.card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.jumbotron {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.table th {
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    letter-spacing: 0.1em;
+}
+
+.badge {
+    font-size: 0.7em;
+    font-weight: 600;
+}
+
+.btn {
+    border-radius: 0.375rem;
+    font-weight: 500;
+    transition: all 0.15s ease-in-out;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+}
+
+.spinner-border {
+    width: 3rem;
+    height: 3rem;
+}
+
+.text-success {
+    color: var(--success-color) !important;
+}
+
+.text-danger {
+    color: var(--danger-color) !important;
+}
+
+.text-warning {
+    color: var(--warning-color) !important;
+}
+
+.text-info {
+    color: var(--info-color) !important;
+}
+
+/* Chart containers */
+.chart-container {
+    margin: 20px 0;
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Loading states */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+    
+    .btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Animation for alerts */
+.alert {
+    animation: slideInTop 0.3s ease-out;
+}
+
+@keyframes slideInTop {
+    from {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Statistics cards */
+.stat-card {
+    background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+.stat-card .stat-icon {
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 24px;
+}
+
+/* Footer */
+footer {
+    margin-top: auto;
+}
+
+/* Modal improvements */
+.modal-content {
+    border-radius: 0.5rem;
+    border: none;
+}
+
+.modal-header {
+    border-bottom: 1px solid rgba(0,0,0,0.125);
+    background-color: var(--light-color);
+}
+
+/* Table improvements */
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 123, 255, 0.075);
+}
+
+/* Form improvements */
+.form-control:focus, .form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Navigation improvements */
+.nav-link {
+    transition: color 0.15s ease-in-out;
+}
+
+.nav-link:hover {
+    color: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* Status indicators */
+.status-online {
+    color: var(--success-color);
+}
+
+.status-offline {
+    color: var(--danger-color);
+}
+
+.status-loading {
+    color: var(--warning-color);
+}
+
+/* HTMX indicators and loading states */
+.htmx-indicator {
+    display: none;
+}
+
+.htmx-request .htmx-indicator {
+    display: inline;
+}
+
+.htmx-request.htmx-indicator {
+    display: inline;
+}
+
+.htmx-swapping {
+    opacity: 0.5;
+    transition: opacity 0.3s ease;
+}
+
+.htmx-settling {
+    opacity: 1;
+}
+
+/* HTMX loading overlay */
+.htmx-loading {
+    position: relative;
+}
+
+.htmx-loading::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\static\js\main.js`:
+
+```js
+// Main JavaScript functions for Crypto DeFi Analyzer
+
+// Global variables
+let isRefreshing = false;
+
+// Utility functions
+function formatNumber(num, decimals = 2) {
+    if (!num || isNaN(num)) return 'N/A';
+    
+    const absNum = Math.abs(num);
+    if (absNum >= 1e12) {
+        return (num / 1e12).toFixed(decimals) + 'T';
+    } else if (absNum >= 1e9) {
+        return (num / 1e9).toFixed(decimals) + 'B';
+    } else if (absNum >= 1e6) {
+        return (num / 1e6).toFixed(decimals) + 'M';
+    } else if (absNum >= 1e3) {
+        return (num / 1e3).toFixed(decimals) + 'K';
+    } else {
+        return num.toFixed(decimals);
+    }
+}
+
+function formatCurrency(num, currency = 'USD') {
+    if (!num || isNaN(num)) return 'N/A';
+    
+    return new Intl.NumberFormat('ru-RU', {
+        style: 'currency',
+        currency: currency,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 6
+    }).format(num);
+}
+
+function formatPercentage(num) {
+    if (!num || isNaN(num)) return 'N/A';
+    const sign = num >= 0 ? '+' : '';
+    return sign + num.toFixed(2) + '%';
+}
+
+function formatDate(dateString, options = {}) {
+    if (!dateString) return 'N/A';
+    
+    const defaultOptions = {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    };
+    
+    return new Date(dateString).toLocaleString('ru-RU', {...defaultOptions, ...options});
+}
+
+// Toast notifications
+function showToast(message, type = 'info', duration = 5000) {
+    const toastContainer = getOrCreateToastContainer();
+    
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-white bg-${type} border-0`;
+    toast.setAttribute('role', 'alert');
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">
+                ${message}
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+    
+    toastContainer.appendChild(toast);
+    
+    const bsToast = new bootstrap.Toast(toast, {
+        autohide: true,
+        delay: duration
+    });
+    
+    bsToast.show();
+    
+    // Remove toast from DOM after it's hidden
+    toast.addEventListener('hidden.bs.toast', () => {
+        toast.remove();
+    });
+}
+
+function getOrCreateToastContainer() {
+    let container = document.getElementById('toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        container.className = 'toast-container position-fixed top-0 end-0 p-3';
+        container.style.zIndex = '1055';
+        document.body.appendChild(container);
+    }
+    return container;
+}
+
+// Loading indicator
+function showLoading(element, show = true) {
+    if (show) {
+        const spinner = document.createElement('div');
+        spinner.className = 'text-center loading-indicator';
+        spinner.innerHTML = `
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Загрузка...</span>
+            </div>
+            <p class="mt-2 text-muted">Загрузка данных...</p>
+        `;
+        element.innerHTML = '';
+        element.appendChild(spinner);
+    } else {
+        const loadingIndicator = element.querySelector('.loading-indicator');
+        if (loadingIndicator) {
+            loadingIndicator.remove();
+        }
+    }
+}
+
+// Data refresh function
+async function refreshData() {
+    if (isRefreshing) return;
+    
+    isRefreshing = true;
+    const button = document.querySelector('[onclick="refreshData()"]');
+    const originalText = button.innerHTML;
+    
+    try {
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Обновление...';
+        
+        showToast('Начинаем обновление данных...', 'info');
+        
+        const response = await fetch('/api/data/refresh', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            showToast('Данные успешно обновлены!', 'success');
+            
+            // Reload current page data if we're on a data page
+            if (typeof loadCryptocurrencies === 'function') {
+                loadCryptocurrencies();
+            }
+            if (typeof loadDeFiProtocols === 'function') {
+                loadDeFiProtocols();
+            }
+            if (typeof loadAnalytics === 'function') {
+                loadAnalytics();
+            }
+        } else {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || 'Ошибка обновления данных');
+        }
+        
+    } catch (error) {
+        console.error('Error refreshing data:', error);
+        showToast('Ошибка при обновлении данных: ' + error.message, 'danger');
+    } finally {
+        button.disabled = false;
+        button.innerHTML = originalText;
+        isRefreshing = false;
+    }
+}
+
+// API helper functions
+async function apiGet(endpoint, params = {}) {
+    const url = new URL(endpoint, window.location.origin);
+    Object.keys(params).forEach(key => {
+        if (params[key] !== null && params[key] !== undefined) {
+            url.searchParams.append(key, params[key]);
+        }
+    });
+    
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    return await response.json();
+}
+
+async function apiPost(endpoint, data = {}) {
+    const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    });
+    
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    return await response.json();
+}
+
+// Plotly chart helpers
+function createBasicLineChart(container, data, title, xTitle = 'Дата', yTitle = 'Значение') {
+    const layout = {
+        title: title,
+        xaxis: { 
+            title: xTitle,
+            type: 'date'
+        },
+        yaxis: { title: yTitle },
+        margin: { t: 50, b: 50, l: 80, r: 50 },
+        plot_bgcolor: '#ffffff',
+        paper_bgcolor: '#ffffff',
+        font: { family: 'Segoe UI, sans-serif' }
+    };
+    
+    const config = {
+        responsive: true,
+        displayModeBar: true,
+        displaylogo: false,
+        modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d']
+    };
+    
+    Plotly.newPlot(container, data, layout, config);
+}
+
+function createScatterPlot(container, xData, yData, title, xTitle, yTitle, colorData = null) {
+    const trace = {
+        x: xData,
+        y: yData,
+        mode: 'markers',
+        type: 'scatter',
+        marker: {
+            size: 8,
+            color: colorData || '#007bff',
+            colorscale: 'Viridis',
+            showscale: colorData ? true : false
+        }
+    };
+    
+    const layout = {
+        title: title,
+        xaxis: { title: xTitle },
+        yaxis: { title: yTitle },
+        margin: { t: 50, b: 50, l: 80, r: 50 }
+    };
+    
+    const config = {
+        responsive: true,
+        displayModeBar: true,
+        displaylogo: false
+    };
+    
+    Plotly.newPlot(container, [trace], layout, config);
+}
+
+// Table helpers
+function createDataTable(container, data, columns, options = {}) {
+    const table = document.createElement('table');
+    table.className = 'table table-hover table-striped';
+    
+    // Create header
+    const thead = document.createElement('thead');
+    thead.className = 'table-dark';
+    const headerRow = document.createElement('tr');
+    
+    columns.forEach(col => {
+        const th = document.createElement('th');
+        th.textContent = col.title;
+        if (col.sortable) {
+            th.style.cursor = 'pointer';
+            th.onclick = () => sortTable(table, col.key);
+        }
+        headerRow.appendChild(th);
+    });
+    
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+    
+    // Create body
+    const tbody = document.createElement('tbody');
+    
+    data.forEach(row => {
+        const tr = document.createElement('tr');
+        
+        columns.forEach(col => {
+            const td = document.createElement('td');
+            let value = row[col.key];
+            
+            if (col.formatter) {
+                value = col.formatter(value, row);
+            }
+            
+            td.innerHTML = value;
+            tr.appendChild(td);
+        });
+        
+        tbody.appendChild(tr);
+    });
+    
+    table.appendChild(tbody);
+    container.innerHTML = '';
+    container.appendChild(table);
+}
+
+// Sort table function
+function sortTable(table, key) {
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.rows);
+    
+    const isNumeric = !isNaN(parseFloat(rows[0]?.cells[0]?.textContent));
+    
+    rows.sort((a, b) => {
+        const aValue = a.cells[0].textContent;
+        const bValue = b.cells[0].textContent;
+        
+        if (isNumeric) {
+            return parseFloat(aValue) - parseFloat(bValue);
+        } else {
+            return aValue.localeCompare(bValue);
+        }
+    });
+    
+    tbody.innerHTML = '';
+    rows.forEach(row => tbody.appendChild(row));
+}
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Initialize popovers
+    const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+    popoverTriggerList.map(function (popoverTriggerEl) {
+        return new bootstrap.Popover(popoverTriggerEl);
+    });
+    
+    // Add keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        // Ctrl+R for refresh
+        if (e.ctrlKey && e.key === 'r') {
+            e.preventDefault();
+            refreshData();
+        }
+        
+        // Escape to close modals
+        if (e.key === 'Escape') {
+            const modals = document.querySelectorAll('.modal.show');
+            modals.forEach(modal => {
+                const bsModal = bootstrap.Modal.getInstance(modal);
+                if (bsModal) bsModal.hide();
+            });
+        }
+    });
+});
+
+// Export functions for global use
+window.CryptoAnalyzer = {
+    formatNumber,
+    formatCurrency,
+    formatPercentage,
+    formatDate,
+    showToast,
+    showLoading,
+    refreshData,
+    apiGet,
+    apiPost,
+    createBasicLineChart,
+    createScatterPlot,
+    createDataTable
+};
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\templates\analytics.html`:
+
+```html
+{% extends "base.html" %}
+
+{% block title %}Аналитика - Crypto DeFi Analyzer{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2><i class="fas fa-chart-line"></i> Аналитика данных</h2>
+        <p class="text-muted">Статистический анализ криптовалют и DeFi протоколов</p>
+    </div>
+</div>
+
+<!-- Карточки с основными метриками -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-arrow-up fa-2x text-success mb-2"></i>
+                <h5 class="card-title">Топ растущих</h5>
+                <p class="card-text" id="topGainersCount">Загрузка...</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-arrow-down fa-2x text-danger mb-2"></i>
+                <h5 class="card-title">Топ падающих</h5>
+                <p class="card-text" id="topLosersCount">Загрузка...</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-coins fa-2x text-warning mb-2"></i>
+                <h5 class="card-title">Всего активов</h5>
+                <p class="card-text" id="totalAssets">Загрузка...</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-chart-area fa-2x text-info mb-2"></i>
+                <h5 class="card-title">DeFi TVL</h5>
+                <p class="card-text" id="totalTVL">Загрузка...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Топ растущие и падающие -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-arrow-up text-success"></i> Топ растущие за 24ч</h5>
+            </div>
+            <div class="card-body">
+                <div id="topGainersTable">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Загрузка...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-arrow-down text-danger"></i> Топ падающие за 24ч</h5>
+            </div>
+            <div class="card-body">
+                <div id="topLosersTable">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Загрузка...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Графики и визуализации -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-chart-line"></i> Интерактивные графики</h5>
+                <div>
+                    <button class="btn btn-sm btn-outline-primary" onclick="loadPriceDistribution()">
+                        Распределение цен
+                    </button>
+                    <button class="btn btn-sm btn-outline-success" onclick="loadTVLDistribution()">
+                        Распределение TVL
+                    </button>
+                    <button class="btn btn-sm btn-outline-info" onclick="loadMarketCapAnalysis()">
+                        Анализ капитализации
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="analyticsChart" style="height: 400px;">
+                    <div class="text-center mt-5">
+                        <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">Выберите тип анализа для отображения графика</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Подготовка к будущим лабораторным работам -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-flask"></i> Готовность к будущим лабораторным работам</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <div class="card border-warning">
+                            <div class="card-body text-center">
+                                <i class="fas fa-chart-bar fa-2x text-warning mb-2"></i>
+                                <h6>Лаб. работа №2</h6>
+                                <p class="small">Проверка нормальности, корреляции</p>
+                                <span class="badge bg-warning">Готово к реализации</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3 mb-3">
+                        <div class="card border-info">
+                            <div class="card-body text-center">
+                                <i class="fas fa-bezier-curve fa-2x text-info mb-2"></i>
+                                <h6>Лаб. работа №3</h6>
+                                <p class="small">Полиномиальная аппроксимация</p>
+                                <span class="badge bg-info">Готово к реализации</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3 mb-3">
+                        <div class="card border-success">
+                            <div class="card-body text-center">
+                                <i class="fas fa-project-diagram fa-2x text-success mb-2"></i>
+                                <h6>Лаб. работа №4</h6>
+                                <p class="small">K-means кластеризация</p>
+                                <span class="badge bg-success">Готово к реализации</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3 mb-3">
+                        <div class="card border-secondary">
+                            <div class="card-body text-center">
+                                <i class="fas fa-database fa-2x text-secondary mb-2"></i>
+                                <h6>Данные</h6>
+                                <p class="small">5+ связанных таблиц</p>
+                                <span class="badge bg-secondary">Реализовано ✓</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info mt-3">
+                    <h6><i class="fas fa-info-circle"></i> Информация о данных</h6>
+                    <p class="mb-0">
+                        Система содержит 5 связанных таблиц с данными криптовалют и DeFi протоколов.
+                        Данные загружаются из открытых API (CoinGecko, DefiLlama) и обновляются автоматически.
+                        Архитектура спроектирована для легкого добавления функциональности последующих лабораторных работ.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentAnalyticsData = {};
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadAnalytics();
+});
+
+async function loadAnalytics() {
+    try {
+        // Загружаем все данные параллельно
+        const [gainersResponse, losersResponse, cryptoResponse, defiResponse] = await Promise.all([
+            fetch('/api/analytics/top-gainers?limit=10'),
+            fetch('/api/analytics/top-losers?limit=10'),
+            fetch('/api/cryptocurrencies?limit=1'),
+            fetch('/api/defi/protocols?limit=1')
+        ]);
+        
+        const gainers = await gainersResponse.json();
+        const losers = await losersResponse.json();
+        const cryptoData = await cryptoResponse.json();
+        const defiData = await defiResponse.json();
+        
+        displayTopGainers(gainers);
+        displayTopLosers(losers);
+        updateMetrics(gainers, losers, cryptoData, defiData);
+        
+    } catch (error) {
+        console.error('Error loading analytics:', error);
+        showError('Ошибка загрузки аналитических данных');
+    }
+}
+
+function displayTopGainers(gainers) {
+    const container = document.getElementById('topGainersTable');
+    
+    if (gainers.length === 0) {
+        container.innerHTML = '<p class="text-muted text-center">Нет данных о растущих активах</p>';
+        return;
+    }
+    
+    const table = document.createElement('table');
+    table.className = 'table table-sm';
+    
+    table.innerHTML = `
+        <thead>
+            <tr>
+                <th>Актив</th>
+                <th>Цена</th>
+                <th>Изменение %</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${gainers.map(coin => `
+                <tr>
+                    <td>
+                        <strong>${coin.name}</strong><br>
+                        <small class="text-muted">${coin.symbol.toUpperCase()}</small>
+                    </td>
+                    <td>$${formatNumber(coin.price_usd)}</td>
+                    <td class="text-success fw-bold">+${coin.price_change_percentage_24h.toFixed(2)}%</td>
+                </tr>
+            `).join('')}
+        </tbody>
+    `;
+    
+    container.innerHTML = '';
+    container.appendChild(table);
+}
+
+function displayTopLosers(losers) {
+    const container = document.getElementById('topLosersTable');
+    
+    if (losers.length === 0) {
+        container.innerHTML = '<p class="text-muted text-center">Нет данных о падающих активах</p>';
+        return;
+    }
+    
+    const table = document.createElement('table');
+    table.className = 'table table-sm';
+    
+    table.innerHTML = `
+        <thead>
+            <tr>
+                <th>Актив</th>
+                <th>Цена</th>
+                <th>Изменение %</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${losers.map(coin => `
+                <tr>
+                    <td>
+                        <strong>${coin.name}</strong><br>
+                        <small class="text-muted">${coin.symbol.toUpperCase()}</small>
+                    </td>
+                    <td>$${formatNumber(coin.price_usd)}</td>
+                    <td class="text-danger fw-bold">${coin.price_change_percentage_24h.toFixed(2)}%</td>
+                </tr>
+            `).join('')}
+        </tbody>
+    `;
+    
+    container.innerHTML = '';
+    container.appendChild(table);
+}
+
+function updateMetrics(gainers, losers, cryptoData, defiData) {
+    document.getElementById('topGainersCount').textContent = gainers.length;
+    document.getElementById('topLosersCount').textContent = losers.length;
+    document.getElementById('totalAssets').textContent = 'Загружено';
+    document.getElementById('totalTVL').textContent = 'Загружено';
+}
+
+async function loadPriceDistribution() {
+    try {
+        const response = await fetch('/api/cryptocurrencies?limit=100');
+        const data = await response.json();
+        
+        const prices = data.map(coin => ({
+            x: coin.symbol,
+            y: coin.current_price || 0,
+            name: coin.name
+        })).filter(item => item.y > 0);
+        
+        const trace = {
+            x: prices.map(p => p.x),
+            y: prices.map(p => p.y),
+            type: 'bar',
+            name: 'Цены',
+            marker: { color: '#007bff' }
+        };
+        
+        const layout = {
+            title: 'Распределение цен криптовалют',
+            xaxis: { title: 'Символ' },
+            yaxis: { title: 'Цена (USD)', type: 'log' },
+            margin: { t: 50, b: 100, l: 80, r: 50 }
+        };
+        
+        const config = {
+            responsive: true,
+            displayModeBar: true,
+            displaylogo: false
+        };
+        
+        Plotly.newPlot('analyticsChart', [trace], layout, config);
+        
+    } catch (error) {
+        console.error('Error loading price distribution:', error);
+        showChartError();
+    }
+}
+
+async function loadTVLDistribution() {
+    try {
+        const response = await fetch('/api/defi/protocols?limit=50');
+        const data = await response.json();
+        
+        const tvls = data.map(protocol => ({
+            x: protocol.name,
+            y: protocol.tvl || 0
+        })).filter(item => item.y > 0);
+        
+        const trace = {
+            x: tvls.map(t => t.x),
+            y: tvls.map(t => t.y),
+            type: 'bar',
+            name: 'TVL',
+            marker: { color: '#28a745' }
+        };
+        
+        const layout = {
+            title: 'Распределение TVL по DeFi протоколам',
+            xaxis: { title: 'Протокол' },
+            yaxis: { title: 'TVL (USD)' },
+            margin: { t: 50, b: 100, l: 80, r: 50 }
+        };
+        
+        const config = {
+            responsive: true,
+            displayModeBar: true,
+            displaylogo: false
+        };
+        
+        Plotly.newPlot('analyticsChart', [trace], layout, config);
+        
+    } catch (error) {
+        console.error('Error loading TVL distribution:', error);
+        showChartError();
+    }
+}
+
+async function loadMarketCapAnalysis() {
+    try {
+        const response = await fetch('/api/cryptocurrencies?limit=20');
+        const data = await response.json();
+        
+        const marketCaps = data.map(coin => ({
+            x: coin.name,
+            y: coin.market_cap || 0,
+            text: coin.symbol
+        })).filter(item => item.y > 0);
+        
+        const trace = {
+            x: marketCaps.map(m => m.x),
+            y: marketCaps.map(m => m.y),
+            type: 'scatter',
+            mode: 'markers',
+            name: 'Рыночная капитализация',
+            marker: {
+                size: marketCaps.map(m => Math.log10(m.y + 1) * 5),
+                color: marketCaps.map(m => m.y),
+                colorscale: 'Viridis',
+                showscale: true,
+                colorbar: { title: 'Market Cap' }
+            },
+            text: marketCaps.map(m => `${m.x} (${m.text})`),
+            hovertemplate: '%{text}<br>Market Cap: $%{y:,.0f}<extra></extra>'
+        };
+        
+        const layout = {
+            title: 'Анализ рыночной капитализации',
+            xaxis: { title: 'Криптовалюта' },
+            yaxis: { title: 'Рыночная капитализация (USD)', type: 'log' },
+            margin: { t: 50, b: 100, l: 80, r: 100 }
+        };
+        
+        const config = {
+            responsive: true,
+            displayModeBar: true,
+            displaylogo: false
+        };
+        
+        Plotly.newPlot('analyticsChart', [trace], layout, config);
+        
+    } catch (error) {
+        console.error('Error loading market cap analysis:', error);
+        showChartError();
+    }
+}
+
+function showChartError() {
+    document.getElementById('analyticsChart').innerHTML = `
+        <div class="alert alert-danger text-center">
+            <i class="fas fa-exclamation-triangle"></i>
+            Ошибка загрузки данных для графика
+        </div>
+    `;
+}
+
+function showError(message) {
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-danger alert-dismissible fade show';
+    alert.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.querySelector('.container').insertAdjacentElement('afterbegin', alert);
+}
+
+function formatNumber(num) {
+    if (!num) return 'N/A';
+    return new Intl.NumberFormat('ru-RU').format(num);
+}
+
+// Функция для глобального использования
+window.loadAnalytics = loadAnalytics;
+</script>
+{% endblock %}
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\templates\base.html`:
+
+```html
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Crypto DeFi Analyzer{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.8"></script>
+    <link rel="stylesheet" href="/static/css/main.css">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-chart-line"></i> Crypto DeFi Analyzer
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/"><i class="fas fa-home"></i> Главная</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/cryptocurrencies"><i class="fas fa-coins"></i> Криптовалюты</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/defi"><i class="fas fa-chart-area"></i> DeFi Протоколы</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/analytics"><i class="fas fa-analytics"></i> Аналитика</a>
+                    </li>
+                </ul>
+                <button class="btn btn-outline-success" onclick="refreshData()">
+                    <i class="fas fa-sync-alt"></i> Обновить данные
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        {% block content %}{% endblock %}
+    </div>
+
+    <footer class="bg-dark text-light text-center py-3 mt-5">
+        <div class="container">
+            <p>&copy; 2024 Crypto DeFi Analyzer. Лабораторная работа по анализу данных криптовалют и DeFi.</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/js/main.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\templates\cryptocurrencies.html`:
+
+```html
+{% extends "base.html" %}
+
+{% block title %}Криптовалюты - Crypto DeFi Analyzer{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2><i class="fas fa-coins"></i> Криптовалюты</h2>
+        <p class="text-muted">Данные по криптовалютам с возможностью фильтрации и детального анализа (HTMX)</p>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="input-group">
+            <span class="input-group-text"><i class="fas fa-search"></i></span>
+            <input type="text" name="search" class="form-control" placeholder="Поиск по названию или символу..."
+                   hx-get="/partials/crypto-table" 
+                   hx-target="#crypto-table-container" 
+                   hx-trigger="input changed delay:500ms, keyup[key=='Enter']"
+                   hx-indicator="#loading-indicator">
+        </div>
+    </div>
+    <div class="col-md-4">
+        <button class="btn btn-primary"
+                hx-post="/api/data/refresh"
+                hx-indicator="#refresh-indicator">
+            <i class="fas fa-sync-alt"></i> Обновить данные
+        </button>
+        <span id="refresh-indicator" class="htmx-indicator ms-2">
+            <i class="fas fa-spinner fa-spin"></i>
+        </span>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Список криптовалют</h5>
+                <div id="loading-indicator" class="htmx-indicator">
+                    <span class="spinner-border spinner-border-sm text-primary" role="status"></span>
+                    <span class="ms-2">Загрузка...</span>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div hx-get="/partials/crypto-table" 
+                     hx-trigger="load" 
+                     hx-indicator="#loading-indicator">
+                    <!-- Таблица будет загружена через HTMX -->
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Загрузка...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Загрузка криптовалют...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal для детальной информации -->
+<div class="modal fade" id="cryptoModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" id="crypto-modal-content">
+            <!-- Содержимое загружается через HTMX -->
+            <div class="modal-header">
+                <h5 class="modal-title">Загрузка...</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Загрузка...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Добавим стили для HTMX индикаторов -->
+<script>
+let currentPage = 1;
+const itemsPerPage = 50;
+let currentSearch = '';
+let currentSort = 'market_cap_rank';
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadCryptocurrencies();
+});
+
+async function loadCryptocurrencies() {
+    showLoading(true);
+    
+    try {
+        const offset = (currentPage - 1) * itemsPerPage;
+        const params = new URLSearchParams({
+            limit: itemsPerPage,
+            offset: offset
+        });
+        
+        if (currentSearch) {
+            params.append('search', currentSearch);
+        }
+        
+        const response = await fetch(`/api/cryptocurrencies?${params}`);
+        const data = await response.json();
+        
+        displayCryptocurrencies(data);
+        updatePagination();
+        
+    } catch (error) {
+        console.error('Error loading cryptocurrencies:', error);
+        showError('Ошибка загрузки данных криптовалют');
+    } finally {
+        showLoading(false);
+    }
+}
+
+function displayCryptocurrencies(cryptocurrencies) {
+    const tbody = document.getElementById('cryptoTableBody');
+    tbody.innerHTML = '';
+    
+    document.getElementById('totalCount').textContent = `Показано: ${cryptocurrencies.length}`;
+    
+    cryptocurrencies.forEach(crypto => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${crypto.market_cap_rank || 'N/A'}</td>
+            <td>
+                <strong>${crypto.name}</strong>
+                ${crypto.description ? `<br><small class="text-muted">${crypto.description.substring(0, 100)}...</small>` : ''}
+            </td>
+            <td><span class="badge bg-primary">${crypto.symbol.toUpperCase()}</span></td>
+            <td>${crypto.blockchain || 'N/A'}</td>
+            <td>${formatDate(crypto.updated_at)}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="showCryptoDetails('${crypto.id}')">
+                    <i class="fas fa-eye"></i> Подробнее
+                </button>
+                ${crypto.website ? `<a href="${crypto.website}" target="_blank" class="btn btn-sm btn-outline-secondary ms-1"><i class="fas fa-external-link-alt"></i></a>` : ''}
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+async function showCryptoDetails(cryptoId) {
+    const modal = new bootstrap.Modal(document.getElementById('cryptoModal'));
+    document.getElementById('cryptoModalTitle').textContent = 'Загрузка...';
+    document.getElementById('cryptoModalContent').innerHTML = '<div class="text-center"><div class="spinner-border text-primary"></div></div>';
+    
+    modal.show();
+    
+    try {
+        // Загружаем историю цен
+        const priceResponse = await fetch(`/api/cryptocurrencies/${cryptoId}/price-history?days=30`);
+        const priceData = await priceResponse.json();
+        
+        // Загружаем рыночные данные
+        const marketResponse = await fetch(`/api/cryptocurrencies/${cryptoId}/market-data?days=30`);
+        const marketData = await marketResponse.json();
+        
+        displayCryptoModal(cryptoId, priceData, marketData);
+        
+    } catch (error) {
+        console.error('Error loading crypto details:', error);
+        document.getElementById('cryptoModalContent').innerHTML = '<div class="alert alert-danger">Ошибка загрузки данных</div>';
+    }
+}
+
+function displayCryptoModal(cryptoId, priceData, marketData) {
+    document.getElementById('cryptoModalTitle').textContent = `Детали: ${cryptoId}`;
+    
+    const content = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6>История цен (30 дней)</h6>
+                <div id="priceChart" style="height: 300px;"></div>
+            </div>
+            <div class="col-md-6">
+                <h6>Рыночные данные</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <tbody>
+                            ${marketData.length > 0 ? `
+                                <tr><td>Общее предложение</td><td>${formatNumber(marketData[0].total_supply)}</td></tr>
+                                <tr><td>В обращении</td><td>${formatNumber(marketData[0].circulating_supply)}</td></tr>
+                                <tr><td>Макс. предложение</td><td>${formatNumber(marketData[0].max_supply)}</td></tr>
+                                <tr><td>ATH</td><td>$${formatNumber(marketData[0].ath)}</td></tr>
+                                <tr><td>ATL</td><td>$${formatNumber(marketData[0].atl)}</td></tr>
+                            ` : '<tr><td colspan="2">Данные недоступны</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-3">
+            <div class="col-12">
+                <h6>Статистика цен</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Дата</th>
+                                <th>Цена USD</th>
+                                <th>Объем 24ч</th>
+                                <th>Изменение %</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${priceData.slice(0, 10).map(price => `
+                                <tr>
+                                    <td>${formatDate(price.timestamp)}</td>
+                                    <td>$${formatNumber(price.price_usd)}</td>
+                                    <td>$${formatNumber(price.volume_24h)}</td>
+                                    <td class="${price.price_change_percentage_24h >= 0 ? 'text-success' : 'text-danger'}">
+                                        ${price.price_change_percentage_24h ? price.price_change_percentage_24h.toFixed(2) + '%' : 'N/A'}
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('cryptoModalContent').innerHTML = content;
+    
+    // Построить график цен
+    if (priceData.length > 0) {
+        plotPriceChart(priceData);
+    }
+}
+
+function plotPriceChart(priceData) {
+    const dates = priceData.map(d => d.timestamp).reverse();
+    const prices = priceData.map(d => d.price_usd).reverse();
+    
+    const trace = {
+        x: dates,
+        y: prices,
+        type: 'scatter',
+        mode: 'lines',
+        name: 'Цена USD',
+        line: { color: '#007bff' }
+    };
+    
+    const layout = {
+        title: 'История цен',
+        xaxis: { title: 'Дата' },
+        yaxis: { title: 'Цена (USD)' },
+        margin: { t: 30, b: 40, l: 60, r: 20 }
+    };
+    
+    Plotly.newPlot('priceChart', [trace], layout);
+}
+
+function searchCryptocurrencies() {
+    currentSearch = document.getElementById('searchInput').value.trim();
+    currentPage = 1;
+    loadCryptocurrencies();
+}
+
+function sortData() {
+    currentSort = document.getElementById('sortSelect').value;
+    currentPage = 1;
+    loadCryptocurrencies();
+}
+
+function updatePagination() {
+    const pagination = document.getElementById('pagination');
+    pagination.innerHTML = `
+        <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="changePage(${currentPage - 1})">Предыдущая</a>
+        </li>
+        <li class="page-item active">
+            <span class="page-link">${currentPage}</span>
+        </li>
+        <li class="page-item">
+            <a class="page-link" href="#" onclick="changePage(${currentPage + 1})">Следующая</a>
+        </li>
+    `;
+}
+
+function changePage(page) {
+    if (page < 1) return;
+    currentPage = page;
+    loadCryptocurrencies();
+}
+
+function showLoading(show) {
+    document.getElementById('loadingSpinner').style.display = show ? 'block' : 'none';
+    document.getElementById('cryptoTable').style.display = show ? 'none' : 'table';
+}
+
+function showError(message) {
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-danger alert-dismissible fade show';
+    alert.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.querySelector('.container').insertAdjacentElement('afterbegin', alert);
+}
+
+function formatNumber(num) {
+    if (!num) return 'N/A';
+    return new Intl.NumberFormat('ru-RU').format(num);
+}
+
+function formatDate(dateString) {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleString('ru-RU');
+}
+
+// Поиск по Enter
+document.getElementById('searchInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        searchCryptocurrencies();
+    }
+});
+</script>
+{% endblock %}
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\templates\defi.html`:
+
+```html
+{% extends "base.html" %}
+
+{% block title %}DeFi Протоколы - Crypto DeFi Analyzer{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2><i class="fas fa-chart-area"></i> DeFi Протоколы</h2>
+        <p class="text-muted">Данные по протоколам децентрализованных финансов с анализом TVL</p>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <select id="categoryFilter" class="form-select" onchange="filterProtocols()">
+            <option value="">Все категории</option>
+            <option value="DEX">DEX</option>
+            <option value="Lending">Lending</option>
+            <option value="Yield Farming">Yield Farming</option>
+            <option value="Derivatives">Derivatives</option>
+            <option value="Insurance">Insurance</option>
+        </select>
+    </div>
+    <div class="col-md-4">
+        <select id="chainFilter" class="form-select" onchange="filterProtocols()">
+            <option value="">Все блокчейны</option>
+            <option value="Ethereum">Ethereum</option>
+            <option value="BSC">BSC</option>
+            <option value="Polygon">Polygon</option>
+            <option value="Avalanche">Avalanche</option>
+            <option value="Solana">Solana</option>
+        </select>
+    </div>
+    <div class="col-md-4">
+        <select id="sortSelect" class="form-select" onchange="sortProtocols()">
+            <option value="tvl">По TVL</option>
+            <option value="name">По названию</option>
+            <option value="category">По категории</option>
+        </select>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Протоколы DeFi</h5>
+                <div>
+                    <span id="totalTVL" class="badge bg-success me-2">Total TVL: Загрузка...</span>
+                    <span id="protocolCount" class="badge bg-secondary">Загрузка...</span>
+                    <button class="btn btn-sm btn-primary ms-2" onclick="loadDeFiProtocols()">
+                        <i class="fas fa-sync-alt"></i> Обновить
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="loadingSpinner" class="text-center" style="display: none;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Загрузка...</span>
+                    </div>
+                    <p class="mt-2">Загрузка DeFi протоколов...</p>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-hover" id="defiTable">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Название</th>
+                                <th>Категория</th>
+                                <th>Блокчейн</th>
+                                <th>TVL</th>
+                                <th>Изменение TVL 24ч</th>
+                                <th>Последнее обновление</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="defiTableBody">
+                        </tbody>
+                    </table>
+                </div>
+                
+                <nav>
+                    <ul class="pagination justify-content-center" id="pagination">
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal для детальной информации о протоколе -->
+<div class="modal fade" id="protocolModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="protocolModalTitle">Детальная информация</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="protocolModalContent">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Загрузка...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentPage = 1;
+const itemsPerPage = 50;
+let currentCategory = '';
+let currentChain = '';
+let currentSort = 'tvl';
+let allProtocols = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadDeFiProtocols();
+});
+
+async function loadDeFiProtocols() {
+    showLoading(true);
+    
+    try {
+        const offset = (currentPage - 1) * itemsPerPage;
+        const params = new URLSearchParams({
+            limit: itemsPerPage,
+            offset: offset
+        });
+        
+        if (currentCategory) {
+            params.append('category', currentCategory);
+        }
+        
+        if (currentChain) {
+            params.append('chain', currentChain);
+        }
+        
+        const response = await fetch(`/api/defi/protocols?${params}`);
+        const data = await response.json();
+        
+        allProtocols = data;
+        displayProtocols(data);
+        updateStatistics(data);
+        updatePagination();
+        
+    } catch (error) {
+        console.error('Error loading DeFi protocols:', error);
+        showError('Ошибка загрузки данных DeFi протоколов');
+    } finally {
+        showLoading(false);
+    }
+}
+
+function displayProtocols(protocols) {
+    const tbody = document.getElementById('defiTableBody');
+    tbody.innerHTML = '';
+    
+    protocols.forEach(protocol => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>
+                <strong>${protocol.name}</strong>
+                ${protocol.description ? `<br><small class="text-muted">${protocol.description.substring(0, 80)}...</small>` : ''}
+            </td>
+            <td><span class="badge bg-info">${protocol.category || 'N/A'}</span></td>
+            <td><span class="badge bg-secondary">${protocol.chain || 'N/A'}</span></td>
+            <td class="fw-bold text-success">$${formatNumber(protocol.tvl)}</td>
+            <td class="${getTVLChangeClass(0)}">
+                N/A
+            </td>
+            <td>${formatDate(protocol.updated_at)}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="showProtocolDetails('${protocol.id}')">
+                    <i class="fas fa-eye"></i> Подробнее
+                </button>
+                ${protocol.website ? `<a href="${protocol.website}" target="_blank" class="btn btn-sm btn-outline-secondary ms-1"><i class="fas fa-external-link-alt"></i></a>` : ''}
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+async function showProtocolDetails(protocolId) {
+    const modal = new bootstrap.Modal(document.getElementById('protocolModal'));
+    document.getElementById('protocolModalTitle').textContent = 'Загрузка...';
+    document.getElementById('protocolModalContent').innerHTML = '<div class="text-center"><div class="spinner-border text-primary"></div></div>';
+    
+    modal.show();
+    
+    try {
+        // Загружаем историю TVL
+        const tvlResponse = await fetch(`/api/defi/protocols/${protocolId}/tvl-history?days=30`);
+        const tvlData = await tvlResponse.json();
+        
+        displayProtocolModal(protocolId, tvlData);
+        
+    } catch (error) {
+        console.error('Error loading protocol details:', error);
+        document.getElementById('protocolModalContent').innerHTML = '<div class="alert alert-danger">Ошибка загрузки данных</div>';
+    }
+}
+
+function displayProtocolModal(protocolId, tvlData) {
+    const protocol = allProtocols.find(p => p.id === protocolId);
+    document.getElementById('protocolModalTitle').textContent = `Детали: ${protocol?.name || protocolId}`;
+    
+    const content = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6>История TVL (30 дней)</h6>
+                <div id="tvlChart" style="height: 300px;"></div>
+            </div>
+            <div class="col-md-6">
+                <h6>Информация о протоколе</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <tbody>
+                            ${protocol ? `
+                                <tr><td>Название</td><td><strong>${protocol.name}</strong></td></tr>
+                                <tr><td>Категория</td><td><span class="badge bg-info">${protocol.category || 'N/A'}</span></td></tr>
+                                <tr><td>Блокчейн</td><td><span class="badge bg-secondary">${protocol.chain || 'N/A'}</span></td></tr>
+                                <tr><td>Текущий TVL</td><td class="text-success fw-bold">$${formatNumber(protocol.tvl)}</td></tr>
+                                <tr><td>Создан</td><td>${formatDate(protocol.created_at)}</td></tr>
+                                <tr><td>Обновлен</td><td>${formatDate(protocol.updated_at)}</td></tr>
+                            ` : '<tr><td colspan="2">Информация недоступна</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-3">
+            <div class="col-12">
+                <h6>История TVL</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Дата</th>
+                                <th>TVL</th>
+                                <th>Изменение 24ч</th>
+                                <th>Изменение %</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tvlData.slice(0, 10).map(tvl => `
+                                <tr>
+                                    <td>${formatDate(tvl.timestamp)}</td>
+                                    <td class="text-success fw-bold">$${formatNumber(tvl.tvl)}</td>
+                                    <td class="${getTVLChangeClass(tvl.tvl_change_24h)}">
+                                        ${tvl.tvl_change_24h ? '$' + formatNumber(tvl.tvl_change_24h) : 'N/A'}
+                                    </td>
+                                    <td class="${getTVLChangeClass(tvl.tvl_change_percentage_24h)}">
+                                        ${tvl.tvl_change_percentage_24h ? tvl.tvl_change_percentage_24h.toFixed(2) + '%' : 'N/A'}
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('protocolModalContent').innerHTML = content;
+    
+    // Построить график TVL
+    if (tvlData.length > 0) {
+        plotTVLChart(tvlData);
+    }
+}
+
+function plotTVLChart(tvlData) {
+    const dates = tvlData.map(d => d.timestamp).reverse();
+    const tvls = tvlData.map(d => d.tvl).reverse();
+    
+    const trace = {
+        x: dates,
+        y: tvls,
+        type: 'scatter',
+        mode: 'lines+markers',
+        name: 'TVL',
+        line: { color: '#28a745' },
+        marker: { size: 6 }
+    };
+    
+    const layout = {
+        title: 'История TVL',
+        xaxis: { title: 'Дата' },
+        yaxis: { title: 'TVL (USD)' },
+        margin: { t: 30, b: 40, l: 80, r: 20 }
+    };
+    
+    Plotly.newPlot('tvlChart', [trace], layout);
+}
+
+function filterProtocols() {
+    currentCategory = document.getElementById('categoryFilter').value;
+    currentChain = document.getElementById('chainFilter').value;
+    currentPage = 1;
+    loadDeFiProtocols();
+}
+
+function sortProtocols() {
+    currentSort = document.getElementById('sortSelect').value;
+    currentPage = 1;
+    loadDeFiProtocols();
+}
+
+function updateStatistics(protocols) {
+    const totalTVL = protocols.reduce((sum, p) => sum + (p.tvl || 0), 0);
+    document.getElementById('totalTVL').textContent = `Total TVL: $${formatNumber(totalTVL)}`;
+    document.getElementById('protocolCount').textContent = `Протоколов: ${protocols.length}`;
+}
+
+function updatePagination() {
+    const pagination = document.getElementById('pagination');
+    pagination.innerHTML = `
+        <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="changePage(${currentPage - 1})">Предыдущая</a>
+        </li>
+        <li class="page-item active">
+            <span class="page-link">${currentPage}</span>
+        </li>
+        <li class="page-item">
+            <a class="page-link" href="#" onclick="changePage(${currentPage + 1})">Следующая</a>
+        </li>
+    `;
+}
+
+function changePage(page) {
+    if (page < 1) return;
+    currentPage = page;
+    loadDeFiProtocols();
+}
+
+function showLoading(show) {
+    document.getElementById('loadingSpinner').style.display = show ? 'block' : 'none';
+    document.getElementById('defiTable').style.display = show ? 'none' : 'table';
+}
+
+function showError(message) {
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-danger alert-dismissible fade show';
+    alert.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.querySelector('.container').insertAdjacentElement('afterbegin', alert);
+}
+
+function getTVLChangeClass(value) {
+    if (!value) return '';
+    return value >= 0 ? 'text-success' : 'text-danger';
+}
+
+function formatNumber(num) {
+    if (!num) return 'N/A';
+    return new Intl.NumberFormat('ru-RU').format(num);
+}
+
+function formatDate(dateString) {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleString('ru-RU');
+}
+
+// Функция для глобального использования
+window.loadDeFiProtocols = loadDeFiProtocols;
+</script>
+{% endblock %}
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\templates\index.html`:
+
+```html
+{% extends "base.html" %}
+
+{% block title %}Главная - Crypto DeFi Analyzer{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="jumbotron bg-primary text-white p-5 rounded mb-4">
+            <h1 class="display-4">Crypto DeFi Analyzer</h1>
+            <p class="lead">Платформа для анализа данных криптовалют и DeFi протоколов с интерактивными графиками и таблицами</p>
+            <hr class="my-4">
+            <p>Используйте навигационные ссылки выше для просмотра различных разделов аналитики</p>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-coins fa-3x text-warning mb-3"></i>
+                <h5 class="card-title">Криптовалюты</h5>
+                <p class="card-text">Просмотр данных по криптовалютам, ценовой истории и рыночных показателей</p>
+                <a href="/cryptocurrencies" class="btn btn-warning">Перейти</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-chart-area fa-3x text-success mb-3"></i>
+                <h5 class="card-title">DeFi Протоколы</h5>
+                <p class="card-text">Анализ протоколов децентрализованных финансов и показателей TVL</p>
+                <a href="/defi" class="btn btn-success">Перейти</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-chart-line fa-3x text-info mb-3"></i>
+                <h5 class="card-title">Аналитика</h5>
+                <p class="card-text">Статистический анализ, корреляции и визуализация данных</p>
+                <a href="/analytics" class="btn btn-info">Перейти</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-info-circle"></i> О проекте</h5>
+            </div>
+            <div class="card-body">
+                <p>Этот проект создан для выполнения лабораторных работ по анализу данных и включает в себя:</p>
+                <ul class="list-unstyled">
+                    <li><i class="fas fa-check text-success"></i> <strong>Лабораторная работа №1:</strong> Работа с базами данных и вывод данных в виде таблиц</li>
+                    <li><i class="fas fa-clock text-warning"></i> <strong>Лабораторная работа №2:</strong> Представление данных с проверкой на нормальность и корреляционный анализ</li>
+                    <li><i class="fas fa-clock text-warning"></i> <strong>Лабораторная работа №3:</strong> Аппроксимация данных полиномами и прогнозирование</li>
+                    <li><i class="fas fa-clock text-warning"></i> <strong>Лабораторная работа №4:</strong> Применение метода K-means к выбранным данным</li>
+                </ul>
+                
+                <h6 class="mt-4">Технологический стек:</h6>
+                <div class="row">
+                    <div class="col-md-6">
+                        <ul class="list-unstyled">
+                            <li><i class="fab fa-python"></i> Python 3.11+</li>
+                            <li><i class="fas fa-server"></i> FastAPI</li>
+                            <li><i class="fas fa-database"></i> ClickHouse</li>
+                            <li><i class="fab fa-docker"></i> Docker</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-code"></i> SQLAlchemy</li>
+                            <li><i class="fas fa-chart-bar"></i> Plotly</li>
+                            <li><i class="fab fa-bootstrap"></i> Bootstrap 5</li>
+                            <li><i class="fas fa-brain"></i> Scikit-learn</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Проверяем статус подключения к базе данных
+    checkDatabaseConnection();
+});
+
+async function checkDatabaseConnection() {
+    try {
+        const response = await fetch('/api/cryptocurrencies?limit=1');
+        if (response.ok) {
+            showAlert('База данных подключена успешно', 'success');
+        } else {
+            showAlert('Проблема с подключением к базе данных', 'warning');
+        }
+    } catch (error) {
+        showAlert('Ошибка подключения к серверу', 'danger');
+    }
+}
+
+function showAlert(message, type) {
+    const alertHtml = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    const container = document.querySelector('.container');
+    container.insertAdjacentHTML('afterbegin', alertHtml);
+    
+    // Автоматически скрыть через 5 секунд
+    setTimeout(() => {
+        const alert = document.querySelector('.alert');
+        if (alert) {
+            alert.remove();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\templates\partials\crypto_details_modal.html`:
+
+```html
+<!-- Содержимое модального окна с деталями криптовалюты -->
+<div class="modal-header">
+    <h5 class="modal-title">
+        <i class="fas fa-coins text-warning"></i>
+        {{ cryptocurrency.name }} ({{ cryptocurrency.symbol.upper() }})
+    </h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+</div>
+
+<div class="modal-body">
+    <div class="row">
+        <!-- Основная информация -->
+        <div class="col-md-6">
+            <h6 class="mb-3"><i class="fas fa-info-circle"></i> Основная информация</h6>
+            <table class="table table-sm">
+                <tbody>
+                    <tr>
+                        <td><strong>ID:</strong></td>
+                        <td>{{ cryptocurrency.id }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Символ:</strong></td>
+                        <td><span class="badge bg-primary">{{ cryptocurrency.symbol.upper() }}</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Ранг:</strong></td>
+                        <td>
+                            {% if cryptocurrency.market_cap_rank %}
+                                <span class="badge bg-secondary">#{{ cryptocurrency.market_cap_rank }}</span>
+                            {% else %}
+                                <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Блокчейн:</strong></td>
+                        <td>{{ cryptocurrency.blockchain or 'N/A' }}</td>
+                    </tr>
+                    {% if cryptocurrency.website %}
+                    <tr>
+                        <td><strong>Сайт:</strong></td>
+                        <td>
+                            <a href="{{ cryptocurrency.website }}" target="_blank" class="text-decoration-none">
+                                <i class="fas fa-external-link-alt"></i> Перейти
+                            </a>
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- График цен (заглушка для будущего развития) -->
+        <div class="col-md-6">
+            <h6 class="mb-3"><i class="fas fa-chart-line"></i> График цен</h6>
+            <div class="bg-light p-4 text-center rounded">
+                <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                <p class="text-muted mb-0">График будет доступен в будущих версиях</p>
+            </div>
+        </div>
+    </div>
+    
+    {% if cryptocurrency.description %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <h6><i class="fas fa-align-left"></i> Описание</h6>
+            <div class="bg-light p-3 rounded">
+                <p class="mb-0">{{ cryptocurrency.description[:300] }}{% if cryptocurrency.description|length > 300 %}...{% endif %}</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- История цен -->
+    {% if price_history %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <h6><i class="fas fa-history"></i> Последние данные цен</h6>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Дата</th>
+                            <th>Цена USD</th>
+                            <th>Объем 24ч</th>
+                            <th>Изменение %</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for price in price_history %}
+                        <tr>
+                            <td>{{ price.timestamp.strftime('%Y-%m-%d %H:%M') if price.timestamp else 'N/A' }}</td>
+                            <td>
+                                {% if price.price_usd %}
+                                    <strong>${{ "%.6f"|format(price.price_usd) if price.price_usd < 1 else "%.2f"|format(price.price_usd) }}</strong>
+                                {% else %}
+                                    <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if price.volume_24h %}
+                                    ${{ "{:,.0f}".format(price.volume_24h) }}
+                                {% else %}
+                                    <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if price.price_change_percentage_24h is not none %}
+                                    <span class="text-{{ 'success' if price.price_change_percentage_24h >= 0 else 'danger' }}">
+                                        {{ "+" if price.price_change_percentage_24h >= 0 else "" }}{{ "%.2f"|format(price.price_change_percentage_24h) }}%
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<div class="modal-footer">
+    <div class="text-muted small">
+        Создано: {{ cryptocurrency.created_at.strftime('%Y-%m-%d %H:%M') if cryptocurrency.created_at else 'N/A' }} |
+        Обновлено: {{ cryptocurrency.updated_at.strftime('%Y-%m-%d %H:%M') if cryptocurrency.updated_at else 'N/A' }}
+    </div>
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+</div>
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\templates\partials\crypto_table.html`:
+
+```html
+<!-- Таблица криптовалют для HTMX обновления -->
+<div id="crypto-table-container">
+    <table class="table table-hover table-striped">
+        <thead class="table-dark">
+            <tr>
+                <th>Ранг</th>
+                <th>Название</th>
+                <th>Символ</th>
+                <th>Цена</th>
+                <th>Изменение 24ч</th>
+                <th>Рыночная кап.</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for crypto in cryptocurrencies %}
+            <tr>
+                <td>
+                    {% if crypto.market_cap_rank %}
+                        <span class="badge bg-secondary">{{ crypto.market_cap_rank }}</span>
+                    {% else %}
+                        <span class="text-muted">N/A</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="d-flex align-items-center">
+                        <div>
+                            <strong>{{ crypto.name }}</strong>
+                            {% if crypto.description %}
+                                <br><small class="text-muted">{{ crypto.description[:80] }}...</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <span class="badge bg-primary">{{ crypto.symbol.upper() }}</span>
+                </td>
+                <td>
+                    {% if crypto.current_price %}
+                        <strong>${{ "%.6f"|format(crypto.current_price) if crypto.current_price < 1 else "%.2f"|format(crypto.current_price) }}</strong>
+                    {% else %}
+                        <span class="text-muted">N/A</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if crypto.price_change_percentage_24h is not none %}
+                        <span class="badge bg-{{ 'success' if crypto.price_change_percentage_24h >= 0 else 'danger' }}">
+                            {{ "+" if crypto.price_change_percentage_24h >= 0 else "" }}{{ "%.2f"|format(crypto.price_change_percentage_24h) }}%
+                        </span>
+                    {% else %}
+                        <span class="text-muted">N/A</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if crypto.market_cap %}
+                        <span class="fw-bold">${{ "{:,.0f}".format(crypto.market_cap) }}</span>
+                    {% else %}
+                        <span class="text-muted">N/A</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary" 
+                            hx-get="/partials/crypto-details/{{ crypto.id }}"
+                            hx-target="#crypto-modal-content"
+                            hx-trigger="click"
+                            data-bs-toggle="modal"
+                            data-bs-target="#cryptoModal">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    {% if crypto.website %}
+                        <a href="{{ crypto.website }}" target="_blank" class="btn btn-sm btn-outline-secondary ms-1">
+                            <i class="fas fa-external-link-alt"></i>
+                        </a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    {% if cryptocurrencies|length == 0 %}
+    <div class="text-center py-4">
+        <i class="fas fa-search fa-3x text-muted mb-3"></i>
+        <p class="text-muted">Криптовалюты не найдены</p>
+    </div>
+    {% endif %}
+    
+    <!-- Пагинация -->
+    <nav aria-label="Pagination">
+        <ul class="pagination justify-content-center">
+            <li class="page-item">
+                <button class="page-link" 
+                        hx-get="/partials/crypto-table"
+                        hx-target="#crypto-table-container"
+                        hx-include="[name='search']"
+                        hx-vals='{"offset": {{ (current_page - 1) * 50 if current_page > 1 else 0 }}}'>
+                    Предыдущая
+                </button>
+            </li>
+            <li class="page-item active">
+                <span class="page-link">{{ current_page }}</span>
+            </li>
+            <li class="page-item">
+                <button class="page-link"
+                        hx-get="/partials/crypto-table"
+                        hx-target="#crypto-table-container"
+                        hx-include="[name='search']"
+                        hx-vals='{"offset": {{ current_page * 50 }}}'>
+                    Следующая
+                </button>
+            </li>
+        </ul>
+    </nav>
+</div>
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\templates\partials\defi_details_modal.html`:
+
+```html
+<!-- Содержимое модального окна с деталями DeFi протокола -->
+<div class="modal-header">
+    <h5 class="modal-title">
+        <i class="fas fa-chart-area text-success"></i>
+        {{ protocol.name }}
+    </h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+</div>
+
+<div class="modal-body">
+    <div class="row">
+        <!-- Основная информация -->
+        <div class="col-md-6">
+            <h6 class="mb-3"><i class="fas fa-info-circle"></i> Информация о протоколе</h6>
+            <table class="table table-sm">
+                <tbody>
+                    <tr>
+                        <td><strong>ID:</strong></td>
+                        <td>{{ protocol.id }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Категория:</strong></td>
+                        <td>
+                            {% if protocol.category %}
+                                <span class="badge bg-info">{{ protocol.category }}</span>
+                            {% else %}
+                                <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Блокчейн:</strong></td>
+                        <td>
+                            {% if protocol.chain %}
+                                <span class="badge bg-secondary">{{ protocol.chain }}</span>
+                            {% else %}
+                                <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Текущий TVL:</strong></td>
+                        <td>
+                            {% if protocol.tvl %}
+                                <span class="fw-bold text-success">${{ "{:,.0f}".format(protocol.tvl) }}</span>
+                            {% else %}
+                                <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% if protocol.native_token_id %}
+                    <tr>
+                        <td><strong>Нативный токен:</strong></td>
+                        <td>{{ protocol.native_token_id }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if protocol.website %}
+                    <tr>
+                        <td><strong>Сайт:</strong></td>
+                        <td>
+                            <a href="{{ protocol.website }}" target="_blank" class="text-decoration-none">
+                                <i class="fas fa-external-link-alt"></i> Перейти
+                            </a>
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- График TVL (заглушка для будущего развития) -->
+        <div class="col-md-6">
+            <h6 class="mb-3"><i class="fas fa-chart-area"></i> График TVL</h6>
+            <div class="bg-light p-4 text-center rounded">
+                <i class="fas fa-chart-area fa-3x text-muted mb-3"></i>
+                <p class="text-muted mb-0">График TVL будет доступен в будущих версиях</p>
+            </div>
+        </div>
+    </div>
+    
+    {% if protocol.description %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <h6><i class="fas fa-align-left"></i> Описание</h6>
+            <div class="bg-light p-3 rounded">
+                <p class="mb-0">{{ protocol.description[:300] }}{% if protocol.description|length > 300 %}...{% endif %}</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- История TVL -->
+    {% if tvl_history %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <h6><i class="fas fa-history"></i> Последние данные TVL</h6>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Дата</th>
+                            <th>TVL</th>
+                            <th>Изменение 24ч</th>
+                            <th>Изменение %</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tvl in tvl_history %}
+                        <tr>
+                            <td>{{ tvl.timestamp.strftime('%Y-%m-%d %H:%M') if tvl.timestamp else 'N/A' }}</td>
+                            <td>
+                                {% if tvl.tvl %}
+                                    <span class="fw-bold text-success">${{ "{:,.0f}".format(tvl.tvl) }}</span>
+                                {% else %}
+                                    <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if tvl.tvl_change_24h is not none %}
+                                    <span class="text-{{ 'success' if tvl.tvl_change_24h >= 0 else 'danger' }}">
+                                        {{ "+" if tvl.tvl_change_24h >= 0 else "" }}${{ "{:,.0f}".format(tvl.tvl_change_24h) }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if tvl.tvl_change_percentage_24h is not none %}
+                                    <span class="text-{{ 'success' if tvl.tvl_change_percentage_24h >= 0 else 'danger' }}">
+                                        {{ "+" if tvl.tvl_change_percentage_24h >= 0 else "" }}{{ "%.2f"|format(tvl.tvl_change_percentage_24h) }}%
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<div class="modal-footer">
+    <div class="text-muted small">
+        Создан: {{ protocol.created_at.strftime('%Y-%m-%d %H:%M') if protocol.created_at else 'N/A' }} |
+        Обновлен: {{ protocol.updated_at.strftime('%Y-%m-%d %H:%M') if protocol.updated_at else 'N/A' }}
+    </div>
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+</div>
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\templates\partials\defi_table.html`:
+
+```html
+<!-- Таблица DeFi протоколов для HTMX обновления -->
+<div id="defi-table-container">
+    <table class="table table-hover table-striped">
+        <thead class="table-dark">
+            <tr>
+                <th>Название</th>
+                <th>Категория</th>
+                <th>Блокчейн</th>
+                <th>TVL</th>
+                <th>Изменение TVL 24ч</th>
+                <th>Обновлено</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for protocol in protocols %}
+            <tr>
+                <td>
+                    <div>
+                        <strong>{{ protocol.name }}</strong>
+                        {% if protocol.description %}
+                            <br><small class="text-muted">{{ protocol.description[:60] }}...</small>
+                        {% endif %}
+                    </div>
+                </td>
+                <td>
+                    {% if protocol.category %}
+                        <span class="badge bg-info">{{ protocol.category }}</span>
+                    {% else %}
+                        <span class="text-muted">N/A</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if protocol.chain %}
+                        <span class="badge bg-secondary">{{ protocol.chain }}</span>
+                    {% else %}
+                        <span class="text-muted">N/A</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if protocol.current_tvl or protocol.tvl %}
+                        <span class="fw-bold text-success">${{ "{:,.0f}".format(protocol.current_tvl or protocol.tvl) }}</span>
+                    {% else %}
+                        <span class="text-muted">N/A</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if protocol.tvl_change_percentage_24h is not none %}
+                        <span class="badge bg-{{ 'success' if protocol.tvl_change_percentage_24h >= 0 else 'danger' }}">
+                            {{ "+" if protocol.tvl_change_percentage_24h >= 0 else "" }}{{ "%.2f"|format(protocol.tvl_change_percentage_24h) }}%
+                        </span>
+                    {% else %}
+                        <span class="text-muted">N/A</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <small class="text-muted">
+                        {{ protocol.updated_at.strftime('%Y-%m-%d %H:%M') if protocol.updated_at else 'N/A' }}
+                    </small>
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary"
+                            hx-get="/partials/defi-details/{{ protocol.id }}"
+                            hx-target="#defi-modal-content"
+                            hx-trigger="click"
+                            data-bs-toggle="modal"
+                            data-bs-target="#defiModal">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    {% if protocol.website %}
+                        <a href="{{ protocol.website }}" target="_blank" class="btn btn-sm btn-outline-secondary ms-1">
+                            <i class="fas fa-external-link-alt"></i>
+                        </a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    {% if protocols|length == 0 %}
+    <div class="text-center py-4">
+        <i class="fas fa-search fa-3x text-muted mb-3"></i>
+        <p class="text-muted">DeFi протоколы не найдены</p>
+    </div>
+    {% endif %}
+    
+    <!-- Пагинация -->
+    <nav aria-label="Pagination">
+        <ul class="pagination justify-content-center">
+            <li class="page-item">
+                <button class="page-link"
+                        hx-get="/partials/defi-table"
+                        hx-target="#defi-table-container"
+                        hx-include="[name='category'], [name='chain']"
+                        hx-vals='{"offset": {{ (current_page - 1) * 50 if current_page > 1 else 0 }}}'>
+                    Предыдущая
+                </button>
+            </li>
+            <li class="page-item active">
+                <span class="page-link">{{ current_page }}</span>
+            </li>
+            <li class="page-item">
+                <button class="page-link"
+                        hx-get="/partials/defi-table"
+                        hx-target="#defi-table-container"
+                        hx-include="[name='category'], [name='chain']"
+                        hx-vals='{"offset": {{ current_page * 50 }}}'>
+                    Следующая
+                </button>
+            </li>
+        </ul>
+    </nav>
+</div>
+```
+
+`\\?\C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\app\templates\partials\error.html`:
+
+```html
+<!-- Общий шаблон для отображения ошибок в HTMX запросах -->
+<div class="alert alert-danger" role="alert">
+    <i class="fas fa-exclamation-triangle"></i>
+    <strong>Ошибка!</strong> {{ error_message or "Произошла неизвестная ошибка" }}
+</div>
+```

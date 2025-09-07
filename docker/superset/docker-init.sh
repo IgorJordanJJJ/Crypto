@@ -9,7 +9,7 @@ sleep 15
 
 # Устанавливаем драйверы перед инициализацией
 echo "🔌 Installing database drivers..."
-pip install psycopg2-binary
+pip install psycopg2-binary flask-cors
 
 # Инициализируем базу данных Superset (PostgreSQL)
 echo "📊 Initializing Superset metadata database..."

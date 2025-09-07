@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:25.8
+    container_name: crypto-clickhouse
+    ports:
+      - "8123:8123"  # HTTP interface
+      - "9000:9000"  # Native interface
+    environment:
+      - CLICKHOUSE_DB=crypto_analytics
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-}
+    volumes:
+      - clickhouse_data_dev:/var/lib/clickhouse
+      - clickhouse_logs_dev:/var/log/clickhouse-server
+#      - ./docker/config.xml:/etc/clickhouse-server/config.xml:ro
+#      - ./docker/users.xml:/etc/clickhouse-server/users.xml:ro
+    networks:
+      - crypto-network-dev
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8123/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+
+volumes:
+  clickhouse_data_dev:
+    driver: local
+  clickhouse_logs_dev:
+    driver: local
+
+networks:
+  crypto-network-dev:

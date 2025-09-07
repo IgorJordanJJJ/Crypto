@@ -1,85 +1,91 @@
-from typing import List, Dict, Any
+from typing import List, Optional
 from datetime import datetime, timedelta
-from .filterable_repository import FilterableRepository
+from sqlalchemy import desc, and_
+from sqlalchemy.orm import joinedload
+from .base_repository import BaseRepository
+from ..models.crypto import PriceHistory, Cryptocurrency
 
 
-class PriceHistoryRepository(FilterableRepository):
+class PriceHistoryRepository(BaseRepository[PriceHistory]):
     """Репозиторий для работы с историей цен"""
     
     def __init__(self):
-        super().__init__('price_history')
+        super().__init__(PriceHistory)
     
-    def find_by_crypto_id(self, crypto_id: str, days: int = 30, limit: int = 1000) -> List[Dict[str, Any]]:
+    def find_by_crypto_id(self, crypto_id: str, days: int = 30, limit: int = 1000) -> List[PriceHistory]:
         """Получение истории цен для криптовалюты"""
         start_date = datetime.utcnow() - timedelta(days=days)
-        
-        query = """
-        SELECT * FROM price_history
-        WHERE cryptocurrency_id = %(crypto_id)s
-        AND timestamp >= %(start_date)s
-        ORDER BY timestamp DESC
-        LIMIT %(limit)s
-        """
-        
-        result = self.execute_query(query, {
-            'crypto_id': crypto_id,
-            'start_date': start_date,
-            'limit': limit
-        })
-        
-        return [dict(zip(result.column_names, row)) for row in result.result_rows]
+        db = self._get_db()
+        try:
+            return (db.query(self.model_class)
+                   .filter(self.model_class.cryptocurrency_id == crypto_id)
+                   .filter(self.model_class.timestamp >= start_date)
+                   .order_by(desc(self.model_class.timestamp))
+                   .limit(limit)
+                   .all())
+        finally:
+            db.close()
     
-    def get_latest_prices(self, limit: int = 100) -> List[Dict[str, Any]]:
+    def get_latest_prices(self, limit: int = 100) -> List[PriceHistory]:
         """Получение последних цен для всех криптовалют"""
-        query = """
-        SELECT 
-            ph.*,
-            c.name,
-            c.symbol
-        FROM price_history ph
-        JOIN cryptocurrencies c ON ph.cryptocurrency_id = c.id
-        WHERE ph.timestamp >= (now() - INTERVAL 1 DAY)
-        ORDER BY ph.timestamp DESC
-        LIMIT %(limit)s
-        """
-        
-        result = self.execute_query(query, {'limit': limit})
-        return [dict(zip(result.column_names, row)) for row in result.result_rows]
+        db = self._get_db()
+        try:
+            # Подзапрос для получения последних временных меток для каждой криптовалюты
+            subquery = (db.query(self.model_class.cryptocurrency_id,
+                               db.func.max(self.model_class.timestamp).label('max_timestamp'))
+                        .group_by(self.model_class.cryptocurrency_id)
+                        .subquery())
+            
+            return (db.query(self.model_class)
+                   .options(joinedload(self.model_class.cryptocurrency))
+                   .join(subquery, 
+                        and_(self.model_class.cryptocurrency_id == subquery.c.cryptocurrency_id,
+                             self.model_class.timestamp == subquery.c.max_timestamp))
+                   .order_by(desc(self.model_class.timestamp))
+                   .limit(limit)
+                   .all())
+        finally:
+            db.close()
     
-    def get_top_gainers(self, limit: int = 10) -> List[Dict[str, Any]]:
+    def get_top_gainers(self, limit: int = 10) -> List[PriceHistory]:
         """Получение топ растущих криптовалют за 24ч"""
-        query = """
-        SELECT 
-            c.name,
-            c.symbol,
-            p.price_usd,
-            p.price_change_percentage_24h
-        FROM price_history p
-        JOIN cryptocurrencies c ON p.cryptocurrency_id = c.id
-        WHERE p.timestamp >= (now() - INTERVAL 1 DAY)
-        AND p.price_change_percentage_24h > 0
-        ORDER BY p.price_change_percentage_24h DESC
-        LIMIT %(limit)s
-        """
-        
-        result = self.execute_query(query, {'limit': limit})
-        return [dict(zip(result.column_names, row)) for row in result.result_rows]
+        one_day_ago = datetime.utcnow() - timedelta(days=1)
+        db = self._get_db()
+        try:
+            return (db.query(self.model_class)
+                   .options(joinedload(self.model_class.cryptocurrency))
+                   .filter(self.model_class.timestamp >= one_day_ago)
+                   .filter(self.model_class.price_change_percentage_24h > 0)
+                   .order_by(desc(self.model_class.price_change_percentage_24h))
+                   .limit(limit)
+                   .all())
+        finally:
+            db.close()
     
-    def get_top_losers(self, limit: int = 10) -> List[Dict[str, Any]]:
+    def get_top_losers(self, limit: int = 10) -> List[PriceHistory]:
         """Получение топ падающих криптовалют за 24ч"""
-        query = """
-        SELECT 
-            c.name,
-            c.symbol,
-            p.price_usd,
-            p.price_change_percentage_24h
-        FROM price_history p
-        JOIN cryptocurrencies c ON p.cryptocurrency_id = c.id
-        WHERE p.timestamp >= (now() - INTERVAL 1 DAY)
-        AND p.price_change_percentage_24h < 0
-        ORDER BY p.price_change_percentage_24h ASC
-        LIMIT %(limit)s
-        """
-        
-        result = self.execute_query(query, {'limit': limit})
-        return [dict(zip(result.column_names, row)) for row in result.result_rows]
+        one_day_ago = datetime.utcnow() - timedelta(days=1)
+        db = self._get_db()
+        try:
+            return (db.query(self.model_class)
+                   .options(joinedload(self.model_class.cryptocurrency))
+                   .filter(self.model_class.timestamp >= one_day_ago)
+                   .filter(self.model_class.price_change_percentage_24h < 0)
+                   .order_by(self.model_class.price_change_percentage_24h.asc())
+                   .limit(limit)
+                   .all())
+        finally:
+            db.close()
+
+    def get_price_chart_data(self, crypto_id: str, days: int = 30) -> List[PriceHistory]:
+        """Получение данных для графика цены"""
+        start_date = datetime.utcnow() - timedelta(days=days)
+        db = self._get_db()
+        try:
+            return (db.query(self.model_class)
+                   .filter(self.model_class.cryptocurrency_id == crypto_id)
+                   .filter(self.model_class.timestamp >= start_date)
+                   .order_by(self.model_class.timestamp.asc())
+                   .all())
+        finally:
+            db.close()

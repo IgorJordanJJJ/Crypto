@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧪 Тестирование Data Fetchers - Crypto DeFi Analyzer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/htmx.org@1.9.9"></script>
+    <style>
+        .status-success { color: #198754; }
+        .status-error { color: #dc3545; }
+        .status-loading { color: #0d6efd; }
+        .json-container { 
+            background: #f8f9fa; 
+            border: 1px solid #dee2e6; 
+            border-radius: 0.375rem;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .btn-test { margin: 5px; }
+        .card-header { font-weight: bold; }
+        pre { font-size: 0.875rem; }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <div class="row">
+            <div class="col-12">
+                <h1 class="mb-4">🧪 Тестирование Data Fetchers</h1>
+                <p class="text-muted">Панель для тестирования API подключений и процессов получения данных</p>
+            </div>
+        </div>
+
+        <!-- Статус системы -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        ℹ️ Статус системы
+                    </div>
+                    <div class="card-body">
+                        <button class="btn btn-outline-primary btn-sm" 
+                                hx-get="/api/data/status"
+                                hx-target="#system-status"
+                                hx-indicator="#loading-status">
+                            Проверить статус системы
+                        </button>
+                        <div id="loading-status" class="htmx-indicator">
+                            <div class="spinner-border spinner-border-sm ms-2" role="status"></div>
+                        </div>
+                        <div id="system-status" class="mt-3"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Тестирование API подключений -->
+            <div class="col-lg-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header bg-primary text-white">
+                        🔍 Тестирование API подключений
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <h6>Bybit API</h6>
+                            <button class="btn btn-outline-success btn-sm btn-test" 
+                                    hx-get="/api/data/test/bybit"
+                                    hx-target="#bybit-test-result"
+                                    hx-indicator="#loading-bybit">
+                                🔗 Тест Bybit API
+                            </button>
+                            <div id="loading-bybit" class="htmx-indicator">
+                                <div class="spinner-border spinner-border-sm ms-2" role="status"></div>
+                            </div>
+                            <div id="bybit-test-result" class="mt-2"></div>
+                        </div>
+
+                        <div class="mb-3">
+                            <h6>DefiLlama API</h6>
+                            <button class="btn btn-outline-success btn-sm btn-test" 
+                                    hx-get="/api/data/test/defillama"
+                                    hx-target="#defillama-test-result"
+                                    hx-indicator="#loading-defillama">
+                                🔗 Тест DefiLlama API
+                            </button>
+                            <div id="loading-defillama" class="htmx-indicator">
+                                <div class="spinner-border spinner-border-sm ms-2" role="status"></div>
+                            </div>
+                            <div id="defillama-test-result" class="mt-2"></div>
+                        </div>
+
+                        <div class="mb-3">
+                            <h6>YFinance API</h6>
+                            <button class="btn btn-outline-success btn-sm btn-test" 
+                                    hx-get="/api/data/test/yfinance"
+                                    hx-target="#yfinance-test-result"
+                                    hx-indicator="#loading-yfinance">
+                                🔗 Тест YFinance API
+                            </button>
+                            <div id="loading-yfinance" class="htmx-indicator">
+                                <div class="spinner-border spinner-border-sm ms-2" role="status"></div>
+                            </div>
+                            <div id="yfinance-test-result" class="mt-2"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Получение примеров данных -->
+            <div class="col-lg-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header bg-warning text-dark">
+                        👀 Просмотр данных (без сохранения)
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <h6>Crypto данные (Bybit)</h6>
+                            <input type="number" id="crypto-limit" value="10" min="1" max="50" class="form-control form-control-sm d-inline-block w-auto me-2">
+                            <button class="btn btn-outline-warning btn-sm btn-test" 
+                                    hx-get="/api/data/sample/crypto"
+                                    hx-include="#crypto-limit"
+                                    hx-target="#crypto-sample-result"
+                                    hx-indicator="#loading-crypto-sample"
+                                    hx-vals='js:{"limit": document.getElementById("crypto-limit").value}'>
+                                📊 Показать примеры
+                            </button>
+                            <div id="loading-crypto-sample" class="htmx-indicator">
+                                <div class="spinner-border spinner-border-sm ms-2" role="status"></div>
+                            </div>
+                            <div id="crypto-sample-result" class="mt-2"></div>
+                        </div>
+
+                        <div class="mb-3">
+                            <h6>DeFi данные (DefiLlama)</h6>
+                            <input type="number" id="defi-limit" value="10" min="1" max="50" class="form-control form-control-sm d-inline-block w-auto me-2">
+                            <button class="btn btn-outline-warning btn-sm btn-test" 
+                                    hx-get="/api/data/sample/defi"
+                                    hx-include="#defi-limit"
+                                    hx-target="#defi-sample-result"
+                                    hx-indicator="#loading-defi-sample"
+                                    hx-vals='js:{"limit": document.getElementById("defi-limit").value}'>
+                                📊 Показать примеры
+                            </button>
+                            <div id="loading-defi-sample" class="htmx-indicator">
+                                <div class="spinner-border spinner-border-sm ms-2" role="status"></div>
+                            </div>
+                            <div id="defi-sample-result" class="mt-2"></div>
+                        </div>
+
+                        <div class="mb-3">
+                            <h6>Crypto данные (YFinance)</h6>
+                            <input type="number" id="yfinance-limit" value="10" min="1" max="20" class="form-control form-control-sm d-inline-block w-auto me-2">
+                            <button class="btn btn-outline-warning btn-sm btn-test" 
+                                    hx-get="/api/data/sample/yfinance"
+                                    hx-include="#yfinance-limit"
+                                    hx-target="#yfinance-sample-result"
+                                    hx-indicator="#loading-yfinance-sample"
+                                    hx-vals='js:{"limit": document.getElementById("yfinance-limit").value}'>
+                                📊 Показать примеры YFinance
+                            </button>
+                            <div id="loading-yfinance-sample" class="htmx-indicator">
+                                <div class="spinner-border spinner-border-sm ms-2" role="status"></div>
+                            </div>
+                            <div id="yfinance-sample-result" class="mt-2"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ручной запуск процессов -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        🚀 Ручной запуск процессов (с сохранением в БД)
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <button class="btn btn-success btn-test w-100" 
+                                        hx-post="/api/data/fetch/crypto"
+                                        hx-target="#crypto-fetch-result"
+                                        hx-indicator="#loading-crypto-fetch">
+                                    💰 Загрузить Crypto данные
+                                </button>
+                                <div id="loading-crypto-fetch" class="htmx-indicator">
+                                    <div class="spinner-border spinner-border-sm ms-2" role="status"></div>
+                                </div>
+                                <div id="crypto-fetch-result" class="mt-2"></div>
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <button class="btn btn-success btn-test w-100" 
+                                        hx-post="/api/data/fetch/defi"
+                                        hx-target="#defi-fetch-result"
+                                        hx-indicator="#loading-defi-fetch">
+                                    🏦 Загрузить DeFi данные
+                                </button>
+                                <div id="loading-defi-fetch" class="htmx-indicator">
+                                    <div class="spinner-border spinner-border-sm ms-2" role="status"></div>
+                                </div>
+                                <div id="defi-fetch-result" class="mt-2"></div>
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <button class="btn btn-primary btn-test w-100" 
+                                        hx-post="/api/data/refresh"
+                                        hx-target="#full-refresh-result"
+                                        hx-indicator="#loading-full-refresh">
+                                    🔄 Полное обновление
+                                </button>
+                                <div id="loading-full-refresh" class="htmx-indicator">
+                                    <div class="spinner-border spinner-border-sm ms-2" role="status"></div>
+                                </div>
+                                <div id="full-refresh-result" class="mt-2"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Навигация -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-secondary text-white">
+                        🔗 Быстрые ссылки
+                    </div>
+                    <div class="card-body">
+                        <a href="/" class="btn btn-outline-primary me-2">🏠 Главная</a>
+                        <a href="/docs" class="btn btn-outline-info me-2" target="_blank">📚 API Документация</a>
+                        <a href="/cryptocurrencies" class="btn btn-outline-success me-2">💰 Криптовалюты</a>
+                        <a href="/defi" class="btn btn-outline-warning me-2">🏦 DeFi протоколы</a>
+                        <a href="/analytics" class="btn btn-outline-secondary me-2">📊 Аналитика</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Функция для красивого отображения JSON
+        function formatJsonResponse(response, targetId) {
+            const target = document.getElementById(targetId);
+            if (!response) return;
+            
+            try {
+                const data = typeof response === 'string' ? JSON.parse(response) : response;
+                const status = data.status || 'unknown';
+                const statusClass = status === 'success' ? 'status-success' : 'status-error';
+                
+                let html = `<div class="${statusClass}"><strong>Статус:</strong> ${status}</div>`;
+                html += `<div class="json-container mt-2"><pre>${JSON.stringify(data, null, 2)}</pre></div>`;
+                
+                target.innerHTML = html;
+            } catch (e) {
+                target.innerHTML = `<div class="status-error">Ошибка парсинга: ${e.message}</div>`;
+            }
+        }
+
+        // Обработчик успешных HTMX запросов
+        document.body.addEventListener('htmx:afterSwap', function(evt) {
+            const target = evt.target;
+            if (target.id && target.textContent) {
+                try {
+                    const data = JSON.parse(target.textContent);
+                    formatJsonResponse(data, target.id);
+                } catch (e) {
+                    // Если не JSON, оставляем как есть
+                }
+            }
+        });
+    </script>
+</body>
+</html>

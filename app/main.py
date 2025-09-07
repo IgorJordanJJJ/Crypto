@@ -7,7 +7,7 @@ from .controllers.defi_controller import create_defi_router
 from .controllers.data_controller import create_data_router
 from .controllers.web_controller import create_web_router
 from .core.config import settings
-from .core.database import clickhouse_manager
+from .core.database import create_database, get_engine
 
 
 logging.basicConfig(level=logging.INFO)
@@ -19,8 +19,7 @@ async def lifespan(app: FastAPI):
     # Startup
     try:
         logger.info("Initializing database...")
-        clickhouse_manager.create_database()
-        clickhouse_manager.create_tables()
+        create_database()
         logger.info("Database initialized successfully")
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
@@ -54,7 +53,9 @@ async def health_check():
     """Health check endpoint"""
     try:
         # Test database connection
-        clickhouse_manager.execute_query("SELECT 1")
+        engine = get_engine()
+        with engine.connect() as connection:
+            connection.execute("SELECT 1")
         return {
             "status": "healthy",
             "database": "connected",

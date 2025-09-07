@@ -1,36 +1,30 @@
 version: '3.8'
 
 services:
-  clickhouse:
-    image: clickhouse/clickhouse-server:25.8
-    container_name: crypto-clickhouse
+  postgres:
+    image: postgres:15-alpine
+    container_name: crypto-postgres
     ports:
-      - "8123:8123"  # HTTP interface
-      - "9000:9000"  # Native interface
+      - "5435:5432"
     environment:
-      - CLICKHOUSE_DB=crypto_analytics
-      - CLICKHOUSE_USER=default
-      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-}
+      - POSTGRES_DB=crypto_analytics
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
     volumes:
-      - clickhouse_data_dev:/var/lib/clickhouse
-      - clickhouse_logs_dev:/var/log/clickhouse-server
-#      - ./docker/config.xml:/etc/clickhouse-server/config.xml:ro
-#      - ./docker/users.xml:/etc/clickhouse-server/users.xml:ro
+      - postgres_data_dev:/var/lib/postgresql/data
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d
     networks:
       - crypto-network-dev
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8123/ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      test: ["CMD-SHELL", "pg_isready -U postgres -d crypto_analytics"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
       start_period: 30s
 
-
 volumes:
-  clickhouse_data_dev:
-    driver: local
-  clickhouse_logs_dev:
+  postgres_data_dev:
     driver: local
 
 networks:

@@ -68,6 +68,13 @@ class WebController:
             "page_title": "Аналитика"
         })
     
+    async def data_testing_page(self, request: Request) -> HTMLResponse:
+        """Страница тестирования данных"""
+        return templates.TemplateResponse("data_testing.html", {
+            "request": request,
+            "page_title": "Тестирование Data Fetchers"
+        })
+    
     # HTMX-специфичные методы для частичных обновлений
     
     async def crypto_table_partial(
@@ -214,6 +221,10 @@ def create_web_router() -> APIRouter:
     @router.get("/analytics", response_class=HTMLResponse)
     async def analytics_page(request: Request):
         return await controller.analytics_page(request)
+    
+    @router.get("/data-testing", response_class=HTMLResponse)
+    async def data_testing_page(request: Request):
+        return await controller.data_testing_page(request)
     
     # HTMX эндпоинты для частичных обновлений
     @router.get("/partials/crypto-table", response_class=HTMLResponse)

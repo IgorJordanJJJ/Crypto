@@ -33,7 +33,7 @@ target_metadata = Base.metadata
 
 def get_url():
     """Get database URL from settings"""
-    return f"clickhouse://{settings.clickhouse_user}:{settings.clickhouse_password}@{settings.clickhouse_host}:{settings.clickhouse_port}/{settings.clickhouse_database}"
+    return f"postgresql://{settings.postgres_user}:{settings.postgres_password}@{settings.postgres_host}:{settings.postgres_port}/{settings.postgres_database}"
 
 
 def run_migrations_offline() -> None:

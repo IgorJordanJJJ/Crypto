@@ -1,105 +1,115 @@
 from typing import List, Dict, Any
 from datetime import datetime, timedelta
-from .filterable_repository import FilterableRepository
+from sqlalchemy import desc, func, and_
+from sqlalchemy.orm import joinedload
+from .base_repository import BaseRepository
+from ..models.crypto import TVLHistory, DeFiProtocol
 
 
-class TVLHistoryRepository(FilterableRepository):
+class TVLHistoryRepository(BaseRepository[TVLHistory]):
     """Репозиторий для работы с историей TVL"""
     
     def __init__(self):
-        super().__init__('tvl_history')
+        super().__init__(TVLHistory)
     
-    def find_by_protocol_id(self, protocol_id: str, days: int = 30, limit: int = 1000) -> List[Dict[str, Any]]:
+    def find_by_protocol_id(self, protocol_id: str, days: int = 30, limit: int = 1000) -> List[TVLHistory]:
         """Получение истории TVL для протокола"""
         start_date = datetime.utcnow() - timedelta(days=days)
-        
-        query = """
-        SELECT * FROM tvl_history
-        WHERE protocol_id = %(protocol_id)s
-        AND timestamp >= %(start_date)s
-        ORDER BY timestamp DESC
-        LIMIT %(limit)s
-        """
-        
-        result = self.execute_query(query, {
-            'protocol_id': protocol_id,
-            'start_date': start_date,
-            'limit': limit
-        })
-        
-        return [dict(zip(result.column_names, row)) for row in result.result_rows]
+        db = self._get_db()
+        try:
+            return (db.query(self.model_class)
+                   .filter(self.model_class.protocol_id == protocol_id)
+                   .filter(self.model_class.timestamp >= start_date)
+                   .order_by(desc(self.model_class.timestamp))
+                   .limit(limit)
+                   .all())
+        finally:
+            db.close()
     
     def get_total_tvl_history(self, days: int = 30) -> List[Dict[str, Any]]:
         """Получение истории общего TVL по дням"""
         start_date = datetime.utcnow() - timedelta(days=days)
-        
-        query = """
-        SELECT 
-            toDate(timestamp) as date,
-            sum(tvl) as total_tvl,
-            count(DISTINCT protocol_id) as protocols_count
-        FROM tvl_history
-        WHERE timestamp >= %(start_date)s
-        GROUP BY toDate(timestamp)
-        ORDER BY date DESC
-        """
-        
-        result = self.execute_query(query, {'start_date': start_date})
-        return [dict(zip(result.column_names, row)) for row in result.result_rows]
+        db = self._get_db()
+        try:
+            result = (db.query(
+                        func.date(self.model_class.timestamp).label('date'),
+                        func.sum(self.model_class.tvl).label('total_tvl'),
+                        func.count(func.distinct(self.model_class.protocol_id)).label('protocols_count')
+                      )
+                     .filter(self.model_class.timestamp >= start_date)
+                     .group_by(func.date(self.model_class.timestamp))
+                     .order_by(desc(func.date(self.model_class.timestamp)))
+                     .all())
+            
+            return [
+                {
+                    'date': str(r.date),
+                    'total_tvl': float(r.total_tvl or 0),
+                    'protocols_count': r.protocols_count
+                }
+                for r in result
+            ]
+        finally:
+            db.close()
     
-    def get_tvl_changes_24h(self) -> List[Dict[str, Any]]:
+    def get_tvl_changes_24h(self) -> List[TVLHistory]:
         """Получение изменений TVL за 24ч для всех протоколов"""
-        query = """
-        SELECT 
-            th.*,
-            dp.name,
-            dp.category,
-            dp.chain
-        FROM tvl_history th
-        JOIN defi_protocols dp ON th.protocol_id = dp.id
-        WHERE th.timestamp >= (now() - INTERVAL 1 DAY)
-        AND th.tvl_change_percentage_24h IS NOT NULL
-        ORDER BY th.tvl_change_percentage_24h DESC
-        """
-        
-        result = self.execute_query(query)
-        return [dict(zip(result.column_names, row)) for row in result.result_rows]
+        one_day_ago = datetime.utcnow() - timedelta(days=1)
+        db = self._get_db()
+        try:
+            return (db.query(self.model_class)
+                   .options(joinedload(self.model_class.protocol))
+                   .filter(self.model_class.timestamp >= one_day_ago)
+                   .filter(self.model_class.tvl_change_percentage_24h.isnot(None))
+                   .order_by(desc(self.model_class.tvl_change_percentage_24h))
+                   .all())
+        finally:
+            db.close()
     
-    def get_top_tvl_gainers(self, limit: int = 10) -> List[Dict[str, Any]]:
+    def get_top_tvl_gainers(self, limit: int = 10) -> List[TVLHistory]:
         """Получение протоколов с наибольшим ростом TVL за 24ч"""
-        query = """
-        SELECT 
-            dp.name,
-            dp.category,
-            dp.chain,
-            th.tvl,
-            th.tvl_change_24h,
-            th.tvl_change_percentage_24h
-        FROM tvl_history th
-        JOIN defi_protocols dp ON th.protocol_id = dp.id
-        WHERE th.timestamp >= (now() - INTERVAL 1 DAY)
-        AND th.tvl_change_percentage_24h > 0
-        ORDER BY th.tvl_change_percentage_24h DESC
-        LIMIT %(limit)s
-        """
-        
-        result = self.execute_query(query, {'limit': limit})
-        return [dict(zip(result.column_names, row)) for row in result.result_rows]
+        one_day_ago = datetime.utcnow() - timedelta(days=1)
+        db = self._get_db()
+        try:
+            return (db.query(self.model_class)
+                   .options(joinedload(self.model_class.protocol))
+                   .filter(self.model_class.timestamp >= one_day_ago)
+                   .filter(self.model_class.tvl_change_percentage_24h > 0)
+                   .order_by(desc(self.model_class.tvl_change_percentage_24h))
+                   .limit(limit)
+                   .all())
+        finally:
+            db.close()
     
     def get_tvl_summary(self) -> Dict[str, Any]:
         """Получение сводной статистики TVL"""
-        query = """
-        SELECT 
-            sum(tvl) as total_tvl,
-            count(DISTINCT protocol_id) as total_protocols,
-            avg(tvl) as avg_tvl,
-            max(tvl) as max_tvl,
-            min(tvl) as min_tvl
-        FROM tvl_history
-        WHERE timestamp >= (now() - INTERVAL 1 DAY)
-        """
-        
-        result = self.execute_query(query)
-        if result.result_rows:
-            return dict(zip(result.column_names, result.result_rows[0]))
-        return {}
+        one_day_ago = datetime.utcnow() - timedelta(days=1)
+        db = self._get_db()
+        try:
+            result = (db.query(
+                        func.sum(self.model_class.tvl).label('total_tvl'),
+                        func.count(func.distinct(self.model_class.protocol_id)).label('total_protocols'),
+                        func.avg(self.model_class.tvl).label('avg_tvl'),
+                        func.max(self.model_class.tvl).label('max_tvl'),
+                        func.min(self.model_class.tvl).label('min_tvl')
+                      )
+                     .filter(self.model_class.timestamp >= one_day_ago)
+                     .first())
+            
+            if result:
+                return {
+                    'total_tvl': float(result.total_tvl or 0),
+                    'total_protocols': result.total_protocols or 0,
+                    'avg_tvl': float(result.avg_tvl or 0),
+                    'max_tvl': float(result.max_tvl or 0),
+                    'min_tvl': float(result.min_tvl or 0)
+                }
+            return {
+                'total_tvl': 0,
+                'total_protocols': 0,
+                'avg_tvl': 0,
+                'max_tvl': 0,
+                'min_tvl': 0
+            }
+        finally:
+            db.close()

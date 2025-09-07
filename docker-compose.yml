@@ -1,29 +1,26 @@
 version: '3.8'
 
 services:
-  clickhouse:
-    image: clickhouse/clickhouse-server:25.8
-    container_name: crypto-clickhouse
+  postgres:
+    image: postgres:15-alpine
+    container_name: crypto-postgres
     ports:
-      - "8123:8123"  # HTTP interface
-      - "9000:9000"  # Native interface
+      - "5432:5432"
     environment:
-      - CLICKHOUSE_DB=crypto_analytics
-      - CLICKHOUSE_USER=default
-      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-}
+      - POSTGRES_DB=crypto_analytics
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
     volumes:
-      - clickhouse_data:/var/lib/clickhouse
-      - clickhouse_logs:/var/log/clickhouse-server
-#      - ./docker/config.xml:/etc/clickhouse-server/config.xml:ro
-#      - ./docker/users.xml:/etc/clickhouse-server/users.xml:ro
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d
     networks:
       - crypto-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8123/ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      test: ["CMD-SHELL", "pg_isready -U postgres -d crypto_analytics"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
       start_period: 30s
 
   crypto-app:
@@ -32,15 +29,15 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - CLICKHOUSE_HOST=clickhouse
-      - CLICKHOUSE_PORT=8123
-      - CLICKHOUSE_USER=default
-      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-}
-      - CLICKHOUSE_DATABASE=crypto_analytics
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
+      - POSTGRES_DATABASE=crypto_analytics
       - COINGECKO_API_KEY=${COINGECKO_API_KEY:-}
       - DEBUG=${DEBUG:-false}
     depends_on:
-      clickhouse:
+      postgres:
         condition: service_healthy
     networks:
       - crypto-network
@@ -58,14 +55,14 @@ services:
     build: .
     container_name: crypto-data-scheduler
     environment:
-      - CLICKHOUSE_HOST=clickhouse
-      - CLICKHOUSE_PORT=8123
-      - CLICKHOUSE_USER=default
-      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-}
-      - CLICKHOUSE_DATABASE=crypto_analytics
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
+      - POSTGRES_DATABASE=crypto_analytics
       - COINGECKO_API_KEY=${COINGECKO_API_KEY:-}
     depends_on:
-      clickhouse:
+      postgres:
         condition: service_healthy
     networks:
       - crypto-network
@@ -123,7 +120,7 @@ services:
         condition: service_healthy
       superset-redis:
         condition: service_started
-      clickhouse:
+      postgres:
         condition: service_healthy
     networks:
       - crypto-network
@@ -156,9 +153,7 @@ services:
     restart: unless-stopped
 
 volumes:
-  clickhouse_data:
-    driver: local
-  clickhouse_logs:
+  postgres_data:
     driver: local
   superset_redis_data:
     driver: local

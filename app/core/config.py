@@ -3,18 +3,18 @@ from typing import Optional
 
 
 class Settings(BaseSettings):
-    # ClickHouse settings
-    clickhouse_host: str = "localhost"
-    clickhouse_port: int = 8123
-    clickhouse_user: str = "default"
-    clickhouse_password: str = "password"
-    clickhouse_database: str = "crypto_analytics"
+    # PostgreSQL settings
+    postgres_host: str = "localhost"
+    postgres_port: int = 5435
+    postgres_user: str = "postgres"
+    postgres_password: str = "password"
+    postgres_database: str = "crypto_analytics"
     
     # API settings
-    coingecko_api_url: str = "https://api.coingecko.com/api/v3"
-    coingecko_api_key: Optional[str] = None
-    defipulse_api_url: str = "https://api.defipulse.com"
-    defipulse_api_key: Optional[str] = None
+    bybit_api_url: str = "https://api.bybit.com/v5"
+    # Bybit doesn't require API key for public data - it's free
+    defillama_api_url: str = "https://api.llama.fi"
+    # DefiLlama doesn't require API key - it's free and public
     
     # Application settings
     app_name: str = "Crypto DeFi Analyzer"

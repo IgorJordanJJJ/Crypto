@@ -1,123 +1,187 @@
-from typing import List, Dict, Any, Optional
-from datetime import datetime, timedelta
-from .searchable_repository import SearchableRepository
-from .filterable_repository import FilterableRepository
-from ..schemas.defi_schemas import DeFiProtocolFilter, TVLHistoryFilter
+from typing import List, Optional, Dict, Any
+from sqlalchemy import desc, func
+from sqlalchemy.orm import joinedload
+from .base_repository import BaseRepository
+from ..models.crypto import DeFiProtocol, TVLHistory
+from ..schemas.defi_schemas import DeFiProtocolFilter
 
 
-class DeFiProtocolRepository(SearchableRepository, FilterableRepository):
+class DeFiProtocolRepository(BaseRepository[DeFiProtocol]):
     """Репозиторий для работы с DeFi протоколами"""
     
     def __init__(self):
-        super().__init__('defi_protocols')
+        super().__init__(DeFiProtocol)
     
-    def search_protocols(self, filter_params: DeFiProtocolFilter) -> List[Dict[str, Any]]:
+    def search_protocols(self, filter_params: DeFiProtocolFilter) -> List[DeFiProtocol]:
         """Поиск DeFi протоколов с фильтрацией"""
-        filters = {}
-        
-        if filter_params.category:
-            filters['category'] = filter_params.category
-        
-        if filter_params.chain:
-            filters['chain'] = filter_params.chain
-        
-        return self.find_with_filters(
-            filters=filters,
-            limit=filter_params.limit,
-            offset=filter_params.offset,
-            order_by='tvl',
-            order_direction='DESC'
-        )
+        db = self._get_db()
+        try:
+            query = db.query(self.model_class)
+            
+            if filter_params.category:
+                query = query.filter(self.model_class.category == filter_params.category)
+            
+            if filter_params.chain:
+                query = query.filter(self.model_class.chain == filter_params.chain)
+            
+            return (query
+                   .order_by(desc(self.model_class.tvl))
+                   .offset(filter_params.offset)
+                   .limit(filter_params.limit)
+                   .all())
+        finally:
+            db.close()
     
-    def find_by_category(self, category: str, limit: int = 50) -> List[Dict[str, Any]]:
+    def find_by_category(self, category: str, limit: int = 50) -> List[DeFiProtocol]:
         """Поиск протоколов по категории"""
-        query = """
-        SELECT * FROM defi_protocols
-        WHERE category = %(category)s
-        ORDER BY tvl DESC NULLS LAST
-        LIMIT %(limit)s
-        """
-        result = self.execute_query(query, {'category': category, 'limit': limit})
-        return [dict(zip(result.column_names, row)) for row in result.result_rows]
+        db = self._get_db()
+        try:
+            return (db.query(self.model_class)
+                   .filter(self.model_class.category == category)
+                   .order_by(desc(self.model_class.tvl))
+                   .limit(limit)
+                   .all())
+        finally:
+            db.close()
     
-    def find_by_chain(self, chain: str, limit: int = 50) -> List[Dict[str, Any]]:
+    def find_by_chain(self, chain: str, limit: int = 50) -> List[DeFiProtocol]:
         """Поиск протоколов по блокчейну"""
-        query = """
-        SELECT * FROM defi_protocols
-        WHERE chain = %(chain)s
-        ORDER BY tvl DESC NULLS LAST
-        LIMIT %(limit)s
-        """
-        result = self.execute_query(query, {'chain': chain, 'limit': limit})
-        return [dict(zip(result.column_names, row)) for row in result.result_rows]
+        db = self._get_db()
+        try:
+            return (db.query(self.model_class)
+                   .filter(self.model_class.chain == chain)
+                   .order_by(desc(self.model_class.tvl))
+                   .limit(limit)
+                   .all())
+        finally:
+            db.close()
     
-    def get_top_by_tvl(self, limit: int = 20) -> List[Dict[str, Any]]:
+    def get_top_by_tvl(self, limit: int = 20) -> List[DeFiProtocol]:
         """Получение топ протоколов по TVL"""
-        query = """
-        SELECT * FROM defi_protocols
-        WHERE tvl > 0
-        ORDER BY tvl DESC
-        LIMIT %(limit)s
-        """
-        result = self.execute_query(query, {'limit': limit})
-        return [dict(zip(result.column_names, row)) for row in result.result_rows]
+        db = self._get_db()
+        try:
+            return (db.query(self.model_class)
+                   .filter(self.model_class.tvl > 0)
+                   .order_by(desc(self.model_class.tvl))
+                   .limit(limit)
+                   .all())
+        finally:
+            db.close()
     
-    def get_protocols_with_latest_tvl(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
-        """Получение протоколов с последними данными TVL"""
-        query = """
-        SELECT 
-            dp.*,
-            tvl_h.tvl as current_tvl,
-            tvl_h.tvl_change_24h,
-            tvl_h.tvl_change_percentage_24h,
-            tvl_h.timestamp as tvl_timestamp
-        FROM defi_protocols dp
-        LEFT JOIN (
-            SELECT 
-                protocol_id,
-                tvl,
-                tvl_change_24h,
-                tvl_change_percentage_24h,
-                timestamp,
-                ROW_NUMBER() OVER (PARTITION BY protocol_id ORDER BY timestamp DESC) as rn
-            FROM tvl_history
-        ) tvl_h ON dp.id = tvl_h.protocol_id AND tvl_h.rn = 1
-        ORDER BY COALESCE(tvl_h.tvl, dp.tvl, 0) DESC
-        LIMIT %(limit)s OFFSET %(offset)s
-        """
-        result = self.execute_query(query, {'limit': limit, 'offset': offset})
-        return [dict(zip(result.column_names, row)) for row in result.result_rows]
+    def get_protocols_with_latest_tvl(self, limit: int = 100, offset: int = 0) -> List[dict]:
+        """Получение протоколов с последними данными TVL в виде словарей"""
+        from ..models.crypto import TVLHistory
+        from sqlalchemy import func
+        
+        db = self._get_db()
+        try:
+            # Подзапрос для получения последней записи TVL каждого протокола
+            latest_tvl_subquery = (
+                db.query(
+                    TVLHistory.protocol_id,
+                    func.max(TVLHistory.timestamp).label('max_timestamp')
+                )
+                .group_by(TVLHistory.protocol_id)
+                .subquery()
+            )
+            
+            # Основной запрос с join последних TVL данных
+            query = (
+                db.query(
+                    self.model_class,
+                    TVLHistory.tvl_change_24h,
+                    TVLHistory.tvl_change_percentage_24h
+                )
+                .outerjoin(
+                    latest_tvl_subquery,
+                    self.model_class.id == latest_tvl_subquery.c.protocol_id
+                )
+                .outerjoin(
+                    TVLHistory,
+                    (TVLHistory.protocol_id == self.model_class.id) &
+                    (TVLHistory.timestamp == latest_tvl_subquery.c.max_timestamp)
+                )
+                .order_by(desc(self.model_class.tvl))
+                .offset(offset)
+                .limit(limit)
+            )
+            
+            results = []
+            for protocol, tvl_change_24h, tvl_change_percentage_24h in query.all():
+                protocol_dict = {
+                    'id': protocol.id,
+                    'name': protocol.name,
+                    'category': protocol.category,
+                    'chain': protocol.chain,
+                    'tvl': float(protocol.tvl) if protocol.tvl else 0,
+                    'native_token_id': protocol.native_token_id,
+                    'website': protocol.website,
+                    'description': protocol.description,
+                    'created_at': protocol.created_at,
+                    'updated_at': protocol.updated_at,
+                    'tvl_change_24h': float(tvl_change_24h) if tvl_change_24h else None,
+                    'tvl_change_percentage_24h': float(tvl_change_percentage_24h) if tvl_change_percentage_24h else None
+                }
+                results.append(protocol_dict)
+            
+            return results
+        finally:
+            db.close()
     
     def get_categories_summary(self) -> List[Dict[str, Any]]:
         """Получение сводной статистики по категориям"""
-        query = """
-        SELECT 
-            category,
-            count(*) as protocols_count,
-            sum(tvl) as total_tvl,
-            avg(tvl) as avg_tvl,
-            max(tvl) as max_tvl
-        FROM defi_protocols
-        WHERE tvl > 0
-        GROUP BY category
-        ORDER BY total_tvl DESC
-        """
-        result = self.execute_query(query)
-        return [dict(zip(result.column_names, row)) for row in result.result_rows]
+        db = self._get_db()
+        try:
+            result = (db.query(
+                        self.model_class.category,
+                        func.count().label('protocols_count'),
+                        func.sum(self.model_class.tvl).label('total_tvl'),
+                        func.avg(self.model_class.tvl).label('avg_tvl'),
+                        func.max(self.model_class.tvl).label('max_tvl')
+                      )
+                     .filter(self.model_class.tvl > 0)
+                     .group_by(self.model_class.category)
+                     .order_by(desc(func.sum(self.model_class.tvl)))
+                     .all())
+            
+            return [
+                {
+                    'category': r.category,
+                    'protocols_count': r.protocols_count,
+                    'total_tvl': float(r.total_tvl or 0),
+                    'avg_tvl': float(r.avg_tvl or 0),
+                    'max_tvl': float(r.max_tvl or 0)
+                }
+                for r in result
+            ]
+        finally:
+            db.close()
     
     def get_chains_summary(self) -> List[Dict[str, Any]]:
         """Получение сводной статистики по блокчейнам"""
-        query = """
-        SELECT 
-            chain,
-            count(*) as protocols_count,
-            sum(tvl) as total_tvl,
-            avg(tvl) as avg_tvl,
-            max(tvl) as max_tvl
-        FROM defi_protocols
-        WHERE tvl > 0
-        GROUP BY chain
-        ORDER BY total_tvl DESC
-        """
-        result = self.execute_query(query)
-        return [dict(zip(result.column_names, row)) for row in result.result_rows]
+        db = self._get_db()
+        try:
+            result = (db.query(
+                        self.model_class.chain,
+                        func.count().label('protocols_count'),
+                        func.sum(self.model_class.tvl).label('total_tvl'),
+                        func.avg(self.model_class.tvl).label('avg_tvl'),
+                        func.max(self.model_class.tvl).label('max_tvl')
+                      )
+                     .filter(self.model_class.tvl > 0)
+                     .group_by(self.model_class.chain)
+                     .order_by(desc(func.sum(self.model_class.tvl)))
+                     .all())
+            
+            return [
+                {
+                    'chain': r.chain,
+                    'protocols_count': r.protocols_count,
+                    'total_tvl': float(r.total_tvl or 0),
+                    'avg_tvl': float(r.avg_tvl or 0),
+                    'max_tvl': float(r.max_tvl or 0)
+                }
+                for r in result
+            ]
+        finally:
+            db.close()

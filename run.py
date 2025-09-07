@@ -17,7 +17,7 @@ sys.path.insert(0, str(project_root))
 
 from app.main import app
 from app.services.batch_processor import data_processor
-from app.core.database import clickhouse_manager
+from app.core.database import create_database
 from alembic.config import Config
 from alembic import command
 
@@ -26,8 +26,7 @@ def init_database():
     """Initialize the database and create tables."""
     print("🔄 Initializing database...")
     try:
-        clickhouse_manager.create_database()
-        clickhouse_manager.create_tables()
+        create_database()
         print("✅ Database initialized successfully!")
     except Exception as e:
         print(f"❌ Failed to initialize database: {e}")

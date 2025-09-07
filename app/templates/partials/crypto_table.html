@@ -88,19 +88,24 @@
     <!-- Пагинация -->
     <nav aria-label="Pagination">
         <ul class="pagination justify-content-center">
-            <li class="page-item">
+            <li class="page-item{% if current_page <= 1 %} disabled{% endif %}">
+                {% if current_page > 1 %}
                 <button class="page-link" 
                         hx-get="/partials/crypto-table"
                         hx-target="#crypto-table-container"
                         hx-include="[name='search']"
-                        hx-vals='{"offset": {{ (current_page - 1) * 50 if current_page > 1 else 0 }}}'>
+                        hx-vals='{"offset": {{ (current_page - 2) * 50 }}}'>
                     Предыдущая
                 </button>
+                {% else %}
+                <span class="page-link">Предыдущая</span>
+                {% endif %}
             </li>
             <li class="page-item active">
-                <span class="page-link">{{ current_page }}</span>
+                <span class="page-link">Страница {{ current_page }}</span>
             </li>
-            <li class="page-item">
+            <li class="page-item{% if cryptocurrencies|length < 50 %} disabled{% endif %}">
+                {% if cryptocurrencies|length >= 50 %}
                 <button class="page-link"
                         hx-get="/partials/crypto-table"
                         hx-target="#crypto-table-container"
@@ -108,6 +113,9 @@
                         hx-vals='{"offset": {{ current_page * 50 }}}'>
                     Следующая
                 </button>
+                {% else %}
+                <span class="page-link">Следующая</span>
+                {% endif %}
             </li>
         </ul>
     </nav>

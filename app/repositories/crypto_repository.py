@@ -1,83 +1,121 @@
-from typing import List, Dict, Any, Optional
-from datetime import datetime, timedelta
-from .searchable_repository import SearchableRepository
-from .filterable_repository import FilterableRepository
-from ..schemas.crypto_schemas import CryptocurrencyFilter, PriceHistoryFilter
+from typing import List, Optional
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import desc, and_
+from .base_repository import BaseRepository
+from ..models.crypto import Cryptocurrency, PriceHistory
+from ..schemas.crypto_schemas import CryptocurrencyFilter
 
 
-class CryptocurrencyRepository(SearchableRepository, FilterableRepository):
+class CryptocurrencyRepository(BaseRepository[Cryptocurrency]):
     """Репозиторий для работы с криптовалютами"""
     
     def __init__(self):
-        super().__init__('cryptocurrencies')
+        super().__init__(Cryptocurrency)
     
-    def search_cryptocurrencies(self, filter_params: CryptocurrencyFilter) -> List[Dict[str, Any]]:
+    def search_cryptocurrencies(self, filter_params: CryptocurrencyFilter) -> List[Cryptocurrency]:
         """Поиск криптовалют с фильтрацией"""
-        if filter_params.search:
-            return self.search(
-                search_term=filter_params.search,
-                search_fields=['name', 'symbol'],
-                limit=filter_params.limit,
-                offset=filter_params.offset
-            )
-        else:
-            return self.find_all(
-                limit=filter_params.limit,
-                offset=filter_params.offset
-            )
+        db = self._get_db()
+        try:
+            query = db.query(self.model_class)
+            
+            if filter_params.search:
+                search_term = f"%{filter_params.search.lower()}%"
+                query = query.filter(
+                    (self.model_class.name.ilike(search_term)) |
+                    (self.model_class.symbol.ilike(search_term))
+                )
+            
+            return (query
+                   .order_by(self.model_class.market_cap_rank.asc().nulls_last())
+                   .offset(filter_params.offset)
+                   .limit(filter_params.limit)
+                   .all())
+        finally:
+            db.close()
     
-    def find_by_symbol(self, symbol: str) -> Optional[Dict[str, Any]]:
+    def find_by_symbol(self, symbol: str) -> Optional[Cryptocurrency]:
         """Поиск криптовалюты по символу"""
-        query = """
-        SELECT * FROM cryptocurrencies
-        WHERE symbol = %(symbol)s
-        LIMIT 1
-        """
-        result = self.execute_query(query, {'symbol': symbol.lower()})
-        
-        if result.result_rows:
-            return dict(zip(result.column_names, result.result_rows[0]))
-        return None
+        db = self._get_db()
+        try:
+            return (db.query(self.model_class)
+                   .filter(self.model_class.symbol.ilike(symbol))
+                   .first())
+        finally:
+            db.close()
     
-    def find_top_by_market_cap(self, limit: int = 50) -> List[Dict[str, Any]]:
+    def find_top_by_market_cap(self, limit: int = 50) -> List[Cryptocurrency]:
         """Получение топ криптовалют по рыночной капитализации"""
-        query = """
-        SELECT * FROM cryptocurrencies
-        WHERE market_cap_rank IS NOT NULL
-        ORDER BY market_cap_rank ASC
-        LIMIT %(limit)s
-        """
-        result = self.execute_query(query, {'limit': limit})
-        return [dict(zip(result.column_names, row)) for row in result.result_rows]
+        db = self._get_db()
+        try:
+            return (db.query(self.model_class)
+                   .filter(self.model_class.market_cap_rank.isnot(None))
+                   .order_by(self.model_class.market_cap_rank.asc())
+                   .limit(limit)
+                   .all())
+        finally:
+            db.close()
     
-    def get_cryptocurrencies_with_latest_price(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
-        """Получение криптовалют с последними ценами"""
-        query = """
-        SELECT 
-            c.*,
-            p.price_usd as current_price,
-            p.price_change_24h,
-            p.price_change_percentage_24h,
-            p.market_cap,
-            p.volume_24h,
-            p.timestamp as price_timestamp
-        FROM cryptocurrencies c
-        LEFT JOIN (
-            SELECT 
-                cryptocurrency_id,
-                price_usd,
-                price_change_24h,
-                price_change_percentage_24h,
-                market_cap,
-                volume_24h,
-                timestamp,
-                ROW_NUMBER() OVER (PARTITION BY cryptocurrency_id ORDER BY timestamp DESC) as rn
-            FROM price_history
-        ) p ON c.id = p.cryptocurrency_id AND p.rn = 1
-        ORDER BY c.market_cap_rank ASC NULLS LAST
-        LIMIT %(limit)s OFFSET %(offset)s
-        """
-        result = self.execute_query(query, {'limit': limit, 'offset': offset})
-        return [dict(zip(result.column_names, row)) for row in result.result_rows]
+    def get_cryptocurrencies_with_latest_price(self, limit: int = 100, offset: int = 0) -> List[dict]:
+        """Получение криптовалют с последними ценами в виде словарей"""
+        from ..models.crypto import PriceHistory
+        from sqlalchemy import func, desc
+        
+        db = self._get_db()
+        try:
+            # Подзапрос для получения последней цены каждой криптовалюты
+            latest_price_subquery = (
+                db.query(
+                    PriceHistory.cryptocurrency_id,
+                    func.max(PriceHistory.timestamp).label('max_timestamp')
+                )
+                .group_by(PriceHistory.cryptocurrency_id)
+                .subquery()
+            )
+            
+            # Основной запрос с join последних цен
+            query = (
+                db.query(
+                    self.model_class,
+                    PriceHistory.price_usd.label('current_price'),
+                    PriceHistory.price_change_percentage_24h,
+                    PriceHistory.market_cap,
+                    PriceHistory.volume_24h
+                )
+                .outerjoin(
+                    latest_price_subquery,
+                    self.model_class.id == latest_price_subquery.c.cryptocurrency_id
+                )
+                .outerjoin(
+                    PriceHistory,
+                    (PriceHistory.cryptocurrency_id == self.model_class.id) &
+                    (PriceHistory.timestamp == latest_price_subquery.c.max_timestamp)
+                )
+                .order_by(self.model_class.market_cap_rank.asc().nulls_last())
+                .offset(offset)
+                .limit(limit)
+            )
+            
+            results = []
+            for crypto, current_price, price_change_24h, market_cap, volume_24h in query.all():
+                crypto_dict = {
+                    'id': crypto.id,
+                    'symbol': crypto.symbol,
+                    'name': crypto.name,
+                    'market_cap_rank': crypto.market_cap_rank,
+                    'description': crypto.description,
+                    'website': crypto.website,
+                    'blockchain': crypto.blockchain,
+                    'created_at': crypto.created_at,
+                    'updated_at': crypto.updated_at,
+                    'current_price': float(current_price) if current_price else None,
+                    'price_change_percentage_24h': float(price_change_24h) if price_change_24h else None,
+                    'market_cap': float(market_cap) if market_cap else None,
+                    'volume_24h': float(volume_24h) if volume_24h else None
+                }
+                results.append(crypto_dict)
+            
+            return results
+        finally:
+            db.close()
 
 

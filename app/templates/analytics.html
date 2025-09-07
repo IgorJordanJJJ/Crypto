@@ -1,0 +1,460 @@
+{% extends "base.html" %}
+
+{% block title %}Аналитика - Crypto DeFi Analyzer{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2><i class="fas fa-chart-line"></i> Аналитика данных</h2>
+        <p class="text-muted">Статистический анализ криптовалют и DeFi протоколов</p>
+    </div>
+</div>
+
+<!-- Карточки с основными метриками -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-arrow-up fa-2x text-success mb-2"></i>
+                <h5 class="card-title">Топ растущих</h5>
+                <p class="card-text" id="topGainersCount">Загрузка...</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-arrow-down fa-2x text-danger mb-2"></i>
+                <h5 class="card-title">Топ падающих</h5>
+                <p class="card-text" id="topLosersCount">Загрузка...</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-coins fa-2x text-warning mb-2"></i>
+                <h5 class="card-title">Всего активов</h5>
+                <p class="card-text" id="totalAssets">Загрузка...</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-chart-area fa-2x text-info mb-2"></i>
+                <h5 class="card-title">DeFi TVL</h5>
+                <p class="card-text" id="totalTVL">Загрузка...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Топ растущие и падающие -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-arrow-up text-success"></i> Топ растущие за 24ч</h5>
+            </div>
+            <div class="card-body">
+                <div id="topGainersTable">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Загрузка...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-arrow-down text-danger"></i> Топ падающие за 24ч</h5>
+            </div>
+            <div class="card-body">
+                <div id="topLosersTable">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Загрузка...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Графики и визуализации -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-chart-line"></i> Интерактивные графики</h5>
+                <div>
+                    <button class="btn btn-sm btn-outline-primary" onclick="loadPriceDistribution()">
+                        Распределение цен
+                    </button>
+                    <button class="btn btn-sm btn-outline-success" onclick="loadTVLDistribution()">
+                        Распределение TVL
+                    </button>
+                    <button class="btn btn-sm btn-outline-info" onclick="loadMarketCapAnalysis()">
+                        Анализ капитализации
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="analyticsChart" style="height: 400px;">
+                    <div class="text-center mt-5">
+                        <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">Выберите тип анализа для отображения графика</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Подготовка к будущим лабораторным работам -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-flask"></i> Готовность к будущим лабораторным работам</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <div class="card border-warning">
+                            <div class="card-body text-center">
+                                <i class="fas fa-chart-bar fa-2x text-warning mb-2"></i>
+                                <h6>Лаб. работа №2</h6>
+                                <p class="small">Проверка нормальности, корреляции</p>
+                                <span class="badge bg-warning">Готово к реализации</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3 mb-3">
+                        <div class="card border-info">
+                            <div class="card-body text-center">
+                                <i class="fas fa-bezier-curve fa-2x text-info mb-2"></i>
+                                <h6>Лаб. работа №3</h6>
+                                <p class="small">Полиномиальная аппроксимация</p>
+                                <span class="badge bg-info">Готово к реализации</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3 mb-3">
+                        <div class="card border-success">
+                            <div class="card-body text-center">
+                                <i class="fas fa-project-diagram fa-2x text-success mb-2"></i>
+                                <h6>Лаб. работа №4</h6>
+                                <p class="small">K-means кластеризация</p>
+                                <span class="badge bg-success">Готово к реализации</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3 mb-3">
+                        <div class="card border-secondary">
+                            <div class="card-body text-center">
+                                <i class="fas fa-database fa-2x text-secondary mb-2"></i>
+                                <h6>Данные</h6>
+                                <p class="small">5+ связанных таблиц</p>
+                                <span class="badge bg-secondary">Реализовано ✓</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info mt-3">
+                    <h6><i class="fas fa-info-circle"></i> Информация о данных</h6>
+                    <p class="mb-0">
+                        Система содержит 5 связанных таблиц с данными криптовалют и DeFi протоколов.
+                        Данные загружаются из открытых API (CoinGecko, DefiLlama) и обновляются автоматически.
+                        Архитектура спроектирована для легкого добавления функциональности последующих лабораторных работ.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentAnalyticsData = {};
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadAnalytics();
+});
+
+async function loadAnalytics() {
+    try {
+        // Загружаем все данные параллельно
+        const [gainersResponse, losersResponse, cryptoResponse, defiResponse] = await Promise.all([
+            fetch('/api/analytics/top-gainers?limit=10'),
+            fetch('/api/analytics/top-losers?limit=10'),
+            fetch('/api/cryptocurrencies?limit=1'),
+            fetch('/api/defi/protocols?limit=1')
+        ]);
+        
+        const gainers = await gainersResponse.json();
+        const losers = await losersResponse.json();
+        const cryptoData = await cryptoResponse.json();
+        const defiData = await defiResponse.json();
+        
+        displayTopGainers(gainers);
+        displayTopLosers(losers);
+        updateMetrics(gainers, losers, cryptoData, defiData);
+        
+    } catch (error) {
+        console.error('Error loading analytics:', error);
+        showError('Ошибка загрузки аналитических данных');
+    }
+}
+
+function displayTopGainers(gainers) {
+    const container = document.getElementById('topGainersTable');
+    
+    if (gainers.length === 0) {
+        container.innerHTML = '<p class="text-muted text-center">Нет данных о растущих активах</p>';
+        return;
+    }
+    
+    const table = document.createElement('table');
+    table.className = 'table table-sm';
+    
+    table.innerHTML = `
+        <thead>
+            <tr>
+                <th>Актив</th>
+                <th>Цена</th>
+                <th>Изменение %</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${gainers.map(coin => `
+                <tr>
+                    <td>
+                        <strong>${coin.name}</strong><br>
+                        <small class="text-muted">${coin.symbol.toUpperCase()}</small>
+                    </td>
+                    <td>$${formatNumber(coin.price_usd)}</td>
+                    <td class="text-success fw-bold">+${coin.price_change_percentage_24h.toFixed(2)}%</td>
+                </tr>
+            `).join('')}
+        </tbody>
+    `;
+    
+    container.innerHTML = '';
+    container.appendChild(table);
+}
+
+function displayTopLosers(losers) {
+    const container = document.getElementById('topLosersTable');
+    
+    if (losers.length === 0) {
+        container.innerHTML = '<p class="text-muted text-center">Нет данных о падающих активах</p>';
+        return;
+    }
+    
+    const table = document.createElement('table');
+    table.className = 'table table-sm';
+    
+    table.innerHTML = `
+        <thead>
+            <tr>
+                <th>Актив</th>
+                <th>Цена</th>
+                <th>Изменение %</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${losers.map(coin => `
+                <tr>
+                    <td>
+                        <strong>${coin.name}</strong><br>
+                        <small class="text-muted">${coin.symbol.toUpperCase()}</small>
+                    </td>
+                    <td>$${formatNumber(coin.price_usd)}</td>
+                    <td class="text-danger fw-bold">${coin.price_change_percentage_24h.toFixed(2)}%</td>
+                </tr>
+            `).join('')}
+        </tbody>
+    `;
+    
+    container.innerHTML = '';
+    container.appendChild(table);
+}
+
+function updateMetrics(gainers, losers, cryptoData, defiData) {
+    document.getElementById('topGainersCount').textContent = gainers.length;
+    document.getElementById('topLosersCount').textContent = losers.length;
+    document.getElementById('totalAssets').textContent = 'Загружено';
+    document.getElementById('totalTVL').textContent = 'Загружено';
+}
+
+async function loadPriceDistribution() {
+    try {
+        const response = await fetch('/api/cryptocurrencies?limit=100');
+        const data = await response.json();
+        
+        const prices = data.map(coin => ({
+            x: coin.symbol,
+            y: coin.current_price || 0,
+            name: coin.name
+        })).filter(item => item.y > 0);
+        
+        const trace = {
+            x: prices.map(p => p.x),
+            y: prices.map(p => p.y),
+            type: 'bar',
+            name: 'Цены',
+            marker: { color: '#007bff' }
+        };
+        
+        const layout = {
+            title: 'Распределение цен криптовалют',
+            xaxis: { title: 'Символ' },
+            yaxis: { title: 'Цена (USD)', type: 'log' },
+            margin: { t: 50, b: 100, l: 80, r: 50 }
+        };
+        
+        const config = {
+            responsive: true,
+            displayModeBar: true,
+            displaylogo: false
+        };
+        
+        Plotly.newPlot('analyticsChart', [trace], layout, config);
+        
+    } catch (error) {
+        console.error('Error loading price distribution:', error);
+        showChartError();
+    }
+}
+
+async function loadTVLDistribution() {
+    try {
+        const response = await fetch('/api/defi/protocols?limit=50');
+        const data = await response.json();
+        
+        const tvls = data.map(protocol => ({
+            x: protocol.name,
+            y: protocol.tvl || 0
+        })).filter(item => item.y > 0);
+        
+        const trace = {
+            x: tvls.map(t => t.x),
+            y: tvls.map(t => t.y),
+            type: 'bar',
+            name: 'TVL',
+            marker: { color: '#28a745' }
+        };
+        
+        const layout = {
+            title: 'Распределение TVL по DeFi протоколам',
+            xaxis: { title: 'Протокол' },
+            yaxis: { title: 'TVL (USD)' },
+            margin: { t: 50, b: 100, l: 80, r: 50 }
+        };
+        
+        const config = {
+            responsive: true,
+            displayModeBar: true,
+            displaylogo: false
+        };
+        
+        Plotly.newPlot('analyticsChart', [trace], layout, config);
+        
+    } catch (error) {
+        console.error('Error loading TVL distribution:', error);
+        showChartError();
+    }
+}
+
+async function loadMarketCapAnalysis() {
+    try {
+        const response = await fetch('/api/cryptocurrencies?limit=20');
+        const data = await response.json();
+        
+        const marketCaps = data.map(coin => ({
+            x: coin.name,
+            y: coin.market_cap || 0,
+            text: coin.symbol
+        })).filter(item => item.y > 0);
+        
+        const trace = {
+            x: marketCaps.map(m => m.x),
+            y: marketCaps.map(m => m.y),
+            type: 'scatter',
+            mode: 'markers',
+            name: 'Рыночная капитализация',
+            marker: {
+                size: marketCaps.map(m => Math.log10(m.y + 1) * 5),
+                color: marketCaps.map(m => m.y),
+                colorscale: 'Viridis',
+                showscale: true,
+                colorbar: { title: 'Market Cap' }
+            },
+            text: marketCaps.map(m => `${m.x} (${m.text})`),
+            hovertemplate: '%{text}<br>Market Cap: $%{y:,.0f}<extra></extra>'
+        };
+        
+        const layout = {
+            title: 'Анализ рыночной капитализации',
+            xaxis: { title: 'Криптовалюта' },
+            yaxis: { title: 'Рыночная капитализация (USD)', type: 'log' },
+            margin: { t: 50, b: 100, l: 80, r: 100 }
+        };
+        
+        const config = {
+            responsive: true,
+            displayModeBar: true,
+            displaylogo: false
+        };
+        
+        Plotly.newPlot('analyticsChart', [trace], layout, config);
+        
+    } catch (error) {
+        console.error('Error loading market cap analysis:', error);
+        showChartError();
+    }
+}
+
+function showChartError() {
+    document.getElementById('analyticsChart').innerHTML = `
+        <div class="alert alert-danger text-center">
+            <i class="fas fa-exclamation-triangle"></i>
+            Ошибка загрузки данных для графика
+        </div>
+    `;
+}
+
+function showError(message) {
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-danger alert-dismissible fade show';
+    alert.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.querySelector('.container').insertAdjacentElement('afterbegin', alert);
+}
+
+function formatNumber(num) {
+    if (!num) return 'N/A';
+    return new Intl.NumberFormat('ru-RU').format(num);
+}
+
+// Функция для глобального использования
+window.loadAnalytics = loadAnalytics;
+</script>
+{% endblock %}

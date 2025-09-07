@@ -1,0 +1,328 @@
+{% extends "base.html" %}
+
+{% block title %}Криптовалюты - Crypto DeFi Analyzer{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2><i class="fas fa-coins"></i> Криптовалюты</h2>
+        <p class="text-muted">Данные по криптовалютам с возможностью фильтрации и детального анализа (HTMX)</p>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="input-group">
+            <span class="input-group-text"><i class="fas fa-search"></i></span>
+            <input type="text" name="search" class="form-control" placeholder="Поиск по названию или символу..."
+                   hx-get="/partials/crypto-table" 
+                   hx-target="#crypto-table-container" 
+                   hx-trigger="input changed delay:500ms, keyup[key=='Enter']"
+                   hx-indicator="#loading-indicator">
+        </div>
+    </div>
+    <div class="col-md-4">
+        <button class="btn btn-primary"
+                hx-post="/api/data/refresh"
+                hx-indicator="#refresh-indicator">
+            <i class="fas fa-sync-alt"></i> Обновить данные
+        </button>
+        <span id="refresh-indicator" class="htmx-indicator ms-2">
+            <i class="fas fa-spinner fa-spin"></i>
+        </span>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Список криптовалют</h5>
+                <div id="loading-indicator" class="htmx-indicator">
+                    <span class="spinner-border spinner-border-sm text-primary" role="status"></span>
+                    <span class="ms-2">Загрузка...</span>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div hx-get="/partials/crypto-table" 
+                     hx-trigger="load" 
+                     hx-indicator="#loading-indicator">
+                    <!-- Таблица будет загружена через HTMX -->
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Загрузка...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Загрузка криптовалют...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal для детальной информации -->
+<div class="modal fade" id="cryptoModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" id="crypto-modal-content">
+            <!-- Содержимое загружается через HTMX -->
+            <div class="modal-header">
+                <h5 class="modal-title">Загрузка...</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Загрузка...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Добавим стили для HTMX индикаторов -->
+<script>
+let currentPage = 1;
+const itemsPerPage = 50;
+let currentSearch = '';
+let currentSort = 'market_cap_rank';
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadCryptocurrencies();
+});
+
+async function loadCryptocurrencies() {
+    showLoading(true);
+    
+    try {
+        const offset = (currentPage - 1) * itemsPerPage;
+        const params = new URLSearchParams({
+            limit: itemsPerPage,
+            offset: offset
+        });
+        
+        if (currentSearch) {
+            params.append('search', currentSearch);
+        }
+        
+        const response = await fetch(`/api/cryptocurrencies?${params}`);
+        const data = await response.json();
+        
+        displayCryptocurrencies(data);
+        updatePagination();
+        
+    } catch (error) {
+        console.error('Error loading cryptocurrencies:', error);
+        showError('Ошибка загрузки данных криптовалют');
+    } finally {
+        showLoading(false);
+    }
+}
+
+function displayCryptocurrencies(cryptocurrencies) {
+    const tbody = document.getElementById('cryptoTableBody');
+    tbody.innerHTML = '';
+    
+    document.getElementById('totalCount').textContent = `Показано: ${cryptocurrencies.length}`;
+    
+    cryptocurrencies.forEach(crypto => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${crypto.market_cap_rank || 'N/A'}</td>
+            <td>
+                <strong>${crypto.name}</strong>
+                ${crypto.description ? `<br><small class="text-muted">${crypto.description.substring(0, 100)}...</small>` : ''}
+            </td>
+            <td><span class="badge bg-primary">${crypto.symbol.toUpperCase()}</span></td>
+            <td>${crypto.blockchain || 'N/A'}</td>
+            <td>${formatDate(crypto.updated_at)}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="showCryptoDetails('${crypto.id}')">
+                    <i class="fas fa-eye"></i> Подробнее
+                </button>
+                ${crypto.website ? `<a href="${crypto.website}" target="_blank" class="btn btn-sm btn-outline-secondary ms-1"><i class="fas fa-external-link-alt"></i></a>` : ''}
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+async function showCryptoDetails(cryptoId) {
+    const modal = new bootstrap.Modal(document.getElementById('cryptoModal'));
+    document.getElementById('cryptoModalTitle').textContent = 'Загрузка...';
+    document.getElementById('cryptoModalContent').innerHTML = '<div class="text-center"><div class="spinner-border text-primary"></div></div>';
+    
+    modal.show();
+    
+    try {
+        // Загружаем историю цен
+        const priceResponse = await fetch(`/api/cryptocurrencies/${cryptoId}/price-history?days=30`);
+        const priceData = await priceResponse.json();
+        
+        // Загружаем рыночные данные
+        const marketResponse = await fetch(`/api/cryptocurrencies/${cryptoId}/market-data?days=30`);
+        const marketData = await marketResponse.json();
+        
+        displayCryptoModal(cryptoId, priceData, marketData);
+        
+    } catch (error) {
+        console.error('Error loading crypto details:', error);
+        document.getElementById('cryptoModalContent').innerHTML = '<div class="alert alert-danger">Ошибка загрузки данных</div>';
+    }
+}
+
+function displayCryptoModal(cryptoId, priceData, marketData) {
+    document.getElementById('cryptoModalTitle').textContent = `Детали: ${cryptoId}`;
+    
+    const content = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6>История цен (30 дней)</h6>
+                <div id="priceChart" style="height: 300px;"></div>
+            </div>
+            <div class="col-md-6">
+                <h6>Рыночные данные</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <tbody>
+                            ${marketData.length > 0 ? `
+                                <tr><td>Общее предложение</td><td>${formatNumber(marketData[0].total_supply)}</td></tr>
+                                <tr><td>В обращении</td><td>${formatNumber(marketData[0].circulating_supply)}</td></tr>
+                                <tr><td>Макс. предложение</td><td>${formatNumber(marketData[0].max_supply)}</td></tr>
+                                <tr><td>ATH</td><td>$${formatNumber(marketData[0].ath)}</td></tr>
+                                <tr><td>ATL</td><td>$${formatNumber(marketData[0].atl)}</td></tr>
+                            ` : '<tr><td colspan="2">Данные недоступны</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-3">
+            <div class="col-12">
+                <h6>Статистика цен</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Дата</th>
+                                <th>Цена USD</th>
+                                <th>Объем 24ч</th>
+                                <th>Изменение %</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${priceData.slice(0, 10).map(price => `
+                                <tr>
+                                    <td>${formatDate(price.timestamp)}</td>
+                                    <td>$${formatNumber(price.price_usd)}</td>
+                                    <td>$${formatNumber(price.volume_24h)}</td>
+                                    <td class="${price.price_change_percentage_24h >= 0 ? 'text-success' : 'text-danger'}">
+                                        ${price.price_change_percentage_24h ? price.price_change_percentage_24h.toFixed(2) + '%' : 'N/A'}
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('cryptoModalContent').innerHTML = content;
+    
+    // Построить график цен
+    if (priceData.length > 0) {
+        plotPriceChart(priceData);
+    }
+}
+
+function plotPriceChart(priceData) {
+    const dates = priceData.map(d => d.timestamp).reverse();
+    const prices = priceData.map(d => d.price_usd).reverse();
+    
+    const trace = {
+        x: dates,
+        y: prices,
+        type: 'scatter',
+        mode: 'lines',
+        name: 'Цена USD',
+        line: { color: '#007bff' }
+    };
+    
+    const layout = {
+        title: 'История цен',
+        xaxis: { title: 'Дата' },
+        yaxis: { title: 'Цена (USD)' },
+        margin: { t: 30, b: 40, l: 60, r: 20 }
+    };
+    
+    Plotly.newPlot('priceChart', [trace], layout);
+}
+
+function searchCryptocurrencies() {
+    currentSearch = document.getElementById('searchInput').value.trim();
+    currentPage = 1;
+    loadCryptocurrencies();
+}
+
+function sortData() {
+    currentSort = document.getElementById('sortSelect').value;
+    currentPage = 1;
+    loadCryptocurrencies();
+}
+
+function updatePagination() {
+    const pagination = document.getElementById('pagination');
+    pagination.innerHTML = `
+        <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="changePage(${currentPage - 1})">Предыдущая</a>
+        </li>
+        <li class="page-item active">
+            <span class="page-link">${currentPage}</span>
+        </li>
+        <li class="page-item">
+            <a class="page-link" href="#" onclick="changePage(${currentPage + 1})">Следующая</a>
+        </li>
+    `;
+}
+
+function changePage(page) {
+    if (page < 1) return;
+    currentPage = page;
+    loadCryptocurrencies();
+}
+
+function showLoading(show) {
+    document.getElementById('loadingSpinner').style.display = show ? 'block' : 'none';
+    document.getElementById('cryptoTable').style.display = show ? 'none' : 'table';
+}
+
+function showError(message) {
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-danger alert-dismissible fade show';
+    alert.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.querySelector('.container').insertAdjacentElement('afterbegin', alert);
+}
+
+function formatNumber(num) {
+    if (!num) return 'N/A';
+    return new Intl.NumberFormat('ru-RU').format(num);
+}
+
+function formatDate(dateString) {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleString('ru-RU');
+}
+
+// Поиск по Enter
+document.getElementById('searchInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        searchCryptocurrencies();
+    }
+});
+</script>
+{% endblock %}

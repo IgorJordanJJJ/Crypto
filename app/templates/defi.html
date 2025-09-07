@@ -1,0 +1,376 @@
+{% extends "base.html" %}
+
+{% block title %}DeFi Протоколы - Crypto DeFi Analyzer{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2><i class="fas fa-chart-area"></i> DeFi Протоколы</h2>
+        <p class="text-muted">Данные по протоколам децентрализованных финансов с анализом TVL</p>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <select id="categoryFilter" class="form-select" onchange="filterProtocols()">
+            <option value="">Все категории</option>
+            <option value="DEX">DEX</option>
+            <option value="Lending">Lending</option>
+            <option value="Yield Farming">Yield Farming</option>
+            <option value="Derivatives">Derivatives</option>
+            <option value="Insurance">Insurance</option>
+        </select>
+    </div>
+    <div class="col-md-4">
+        <select id="chainFilter" class="form-select" onchange="filterProtocols()">
+            <option value="">Все блокчейны</option>
+            <option value="Ethereum">Ethereum</option>
+            <option value="BSC">BSC</option>
+            <option value="Polygon">Polygon</option>
+            <option value="Avalanche">Avalanche</option>
+            <option value="Solana">Solana</option>
+        </select>
+    </div>
+    <div class="col-md-4">
+        <select id="sortSelect" class="form-select" onchange="sortProtocols()">
+            <option value="tvl">По TVL</option>
+            <option value="name">По названию</option>
+            <option value="category">По категории</option>
+        </select>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Протоколы DeFi</h5>
+                <div>
+                    <span id="totalTVL" class="badge bg-success me-2">Total TVL: Загрузка...</span>
+                    <span id="protocolCount" class="badge bg-secondary">Загрузка...</span>
+                    <button class="btn btn-sm btn-primary ms-2" onclick="loadDeFiProtocols()">
+                        <i class="fas fa-sync-alt"></i> Обновить
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="loadingSpinner" class="text-center" style="display: none;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Загрузка...</span>
+                    </div>
+                    <p class="mt-2">Загрузка DeFi протоколов...</p>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-hover" id="defiTable">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Название</th>
+                                <th>Категория</th>
+                                <th>Блокчейн</th>
+                                <th>TVL</th>
+                                <th>Изменение TVL 24ч</th>
+                                <th>Последнее обновление</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="defiTableBody">
+                        </tbody>
+                    </table>
+                </div>
+                
+                <nav>
+                    <ul class="pagination justify-content-center" id="pagination">
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal для детальной информации о протоколе -->
+<div class="modal fade" id="protocolModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="protocolModalTitle">Детальная информация</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="protocolModalContent">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Загрузка...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentPage = 1;
+const itemsPerPage = 50;
+let currentCategory = '';
+let currentChain = '';
+let currentSort = 'tvl';
+let allProtocols = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadDeFiProtocols();
+});
+
+async function loadDeFiProtocols() {
+    showLoading(true);
+    
+    try {
+        const offset = (currentPage - 1) * itemsPerPage;
+        const params = new URLSearchParams({
+            limit: itemsPerPage,
+            offset: offset
+        });
+        
+        if (currentCategory) {
+            params.append('category', currentCategory);
+        }
+        
+        if (currentChain) {
+            params.append('chain', currentChain);
+        }
+        
+        const response = await fetch(`/api/defi/protocols?${params}`);
+        const data = await response.json();
+        
+        allProtocols = data;
+        displayProtocols(data);
+        updateStatistics(data);
+        updatePagination();
+        
+    } catch (error) {
+        console.error('Error loading DeFi protocols:', error);
+        showError('Ошибка загрузки данных DeFi протоколов');
+    } finally {
+        showLoading(false);
+    }
+}
+
+function displayProtocols(protocols) {
+    const tbody = document.getElementById('defiTableBody');
+    tbody.innerHTML = '';
+    
+    protocols.forEach(protocol => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>
+                <strong>${protocol.name}</strong>
+                ${protocol.description ? `<br><small class="text-muted">${protocol.description.substring(0, 80)}...</small>` : ''}
+            </td>
+            <td><span class="badge bg-info">${protocol.category || 'N/A'}</span></td>
+            <td><span class="badge bg-secondary">${protocol.chain || 'N/A'}</span></td>
+            <td class="fw-bold text-success">$${formatNumber(protocol.tvl)}</td>
+            <td class="${getTVLChangeClass(0)}">
+                N/A
+            </td>
+            <td>${formatDate(protocol.updated_at)}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="showProtocolDetails('${protocol.id}')">
+                    <i class="fas fa-eye"></i> Подробнее
+                </button>
+                ${protocol.website ? `<a href="${protocol.website}" target="_blank" class="btn btn-sm btn-outline-secondary ms-1"><i class="fas fa-external-link-alt"></i></a>` : ''}
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+async function showProtocolDetails(protocolId) {
+    const modal = new bootstrap.Modal(document.getElementById('protocolModal'));
+    document.getElementById('protocolModalTitle').textContent = 'Загрузка...';
+    document.getElementById('protocolModalContent').innerHTML = '<div class="text-center"><div class="spinner-border text-primary"></div></div>';
+    
+    modal.show();
+    
+    try {
+        // Загружаем историю TVL
+        const tvlResponse = await fetch(`/api/defi/protocols/${protocolId}/tvl-history?days=30`);
+        const tvlData = await tvlResponse.json();
+        
+        displayProtocolModal(protocolId, tvlData);
+        
+    } catch (error) {
+        console.error('Error loading protocol details:', error);
+        document.getElementById('protocolModalContent').innerHTML = '<div class="alert alert-danger">Ошибка загрузки данных</div>';
+    }
+}
+
+function displayProtocolModal(protocolId, tvlData) {
+    const protocol = allProtocols.find(p => p.id === protocolId);
+    document.getElementById('protocolModalTitle').textContent = `Детали: ${protocol?.name || protocolId}`;
+    
+    const content = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6>История TVL (30 дней)</h6>
+                <div id="tvlChart" style="height: 300px;"></div>
+            </div>
+            <div class="col-md-6">
+                <h6>Информация о протоколе</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <tbody>
+                            ${protocol ? `
+                                <tr><td>Название</td><td><strong>${protocol.name}</strong></td></tr>
+                                <tr><td>Категория</td><td><span class="badge bg-info">${protocol.category || 'N/A'}</span></td></tr>
+                                <tr><td>Блокчейн</td><td><span class="badge bg-secondary">${protocol.chain || 'N/A'}</span></td></tr>
+                                <tr><td>Текущий TVL</td><td class="text-success fw-bold">$${formatNumber(protocol.tvl)}</td></tr>
+                                <tr><td>Создан</td><td>${formatDate(protocol.created_at)}</td></tr>
+                                <tr><td>Обновлен</td><td>${formatDate(protocol.updated_at)}</td></tr>
+                            ` : '<tr><td colspan="2">Информация недоступна</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-3">
+            <div class="col-12">
+                <h6>История TVL</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Дата</th>
+                                <th>TVL</th>
+                                <th>Изменение 24ч</th>
+                                <th>Изменение %</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tvlData.slice(0, 10).map(tvl => `
+                                <tr>
+                                    <td>${formatDate(tvl.timestamp)}</td>
+                                    <td class="text-success fw-bold">$${formatNumber(tvl.tvl)}</td>
+                                    <td class="${getTVLChangeClass(tvl.tvl_change_24h)}">
+                                        ${tvl.tvl_change_24h ? '$' + formatNumber(tvl.tvl_change_24h) : 'N/A'}
+                                    </td>
+                                    <td class="${getTVLChangeClass(tvl.tvl_change_percentage_24h)}">
+                                        ${tvl.tvl_change_percentage_24h ? tvl.tvl_change_percentage_24h.toFixed(2) + '%' : 'N/A'}
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('protocolModalContent').innerHTML = content;
+    
+    // Построить график TVL
+    if (tvlData.length > 0) {
+        plotTVLChart(tvlData);
+    }
+}
+
+function plotTVLChart(tvlData) {
+    const dates = tvlData.map(d => d.timestamp).reverse();
+    const tvls = tvlData.map(d => d.tvl).reverse();
+    
+    const trace = {
+        x: dates,
+        y: tvls,
+        type: 'scatter',
+        mode: 'lines+markers',
+        name: 'TVL',
+        line: { color: '#28a745' },
+        marker: { size: 6 }
+    };
+    
+    const layout = {
+        title: 'История TVL',
+        xaxis: { title: 'Дата' },
+        yaxis: { title: 'TVL (USD)' },
+        margin: { t: 30, b: 40, l: 80, r: 20 }
+    };
+    
+    Plotly.newPlot('tvlChart', [trace], layout);
+}
+
+function filterProtocols() {
+    currentCategory = document.getElementById('categoryFilter').value;
+    currentChain = document.getElementById('chainFilter').value;
+    currentPage = 1;
+    loadDeFiProtocols();
+}
+
+function sortProtocols() {
+    currentSort = document.getElementById('sortSelect').value;
+    currentPage = 1;
+    loadDeFiProtocols();
+}
+
+function updateStatistics(protocols) {
+    const totalTVL = protocols.reduce((sum, p) => sum + (p.tvl || 0), 0);
+    document.getElementById('totalTVL').textContent = `Total TVL: $${formatNumber(totalTVL)}`;
+    document.getElementById('protocolCount').textContent = `Протоколов: ${protocols.length}`;
+}
+
+function updatePagination() {
+    const pagination = document.getElementById('pagination');
+    pagination.innerHTML = `
+        <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="changePage(${currentPage - 1})">Предыдущая</a>
+        </li>
+        <li class="page-item active">
+            <span class="page-link">${currentPage}</span>
+        </li>
+        <li class="page-item">
+            <a class="page-link" href="#" onclick="changePage(${currentPage + 1})">Следующая</a>
+        </li>
+    `;
+}
+
+function changePage(page) {
+    if (page < 1) return;
+    currentPage = page;
+    loadDeFiProtocols();
+}
+
+function showLoading(show) {
+    document.getElementById('loadingSpinner').style.display = show ? 'block' : 'none';
+    document.getElementById('defiTable').style.display = show ? 'none' : 'table';
+}
+
+function showError(message) {
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-danger alert-dismissible fade show';
+    alert.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.querySelector('.container').insertAdjacentElement('afterbegin', alert);
+}
+
+function getTVLChangeClass(value) {
+    if (!value) return '';
+    return value >= 0 ? 'text-success' : 'text-danger';
+}
+
+function formatNumber(num) {
+    if (!num) return 'N/A';
+    return new Intl.NumberFormat('ru-RU').format(num);
+}
+
+function formatDate(dateString) {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleString('ru-RU');
+}
+
+// Функция для глобального использования
+window.loadDeFiProtocols = loadDeFiProtocols;
+</script>
+{% endblock %}

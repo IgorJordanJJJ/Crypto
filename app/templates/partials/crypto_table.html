@@ -1,0 +1,114 @@
+<!-- Таблица криптовалют для HTMX обновления -->
+<div id="crypto-table-container">
+    <table class="table table-hover table-striped">
+        <thead class="table-dark">
+            <tr>
+                <th>Ранг</th>
+                <th>Название</th>
+                <th>Символ</th>
+                <th>Цена</th>
+                <th>Изменение 24ч</th>
+                <th>Рыночная кап.</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for crypto in cryptocurrencies %}
+            <tr>
+                <td>
+                    {% if crypto.market_cap_rank %}
+                        <span class="badge bg-secondary">{{ crypto.market_cap_rank }}</span>
+                    {% else %}
+                        <span class="text-muted">N/A</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="d-flex align-items-center">
+                        <div>
+                            <strong>{{ crypto.name }}</strong>
+                            {% if crypto.description %}
+                                <br><small class="text-muted">{{ crypto.description[:80] }}...</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <span class="badge bg-primary">{{ crypto.symbol.upper() }}</span>
+                </td>
+                <td>
+                    {% if crypto.current_price %}
+                        <strong>${{ "%.6f"|format(crypto.current_price) if crypto.current_price < 1 else "%.2f"|format(crypto.current_price) }}</strong>
+                    {% else %}
+                        <span class="text-muted">N/A</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if crypto.price_change_percentage_24h is not none %}
+                        <span class="badge bg-{{ 'success' if crypto.price_change_percentage_24h >= 0 else 'danger' }}">
+                            {{ "+" if crypto.price_change_percentage_24h >= 0 else "" }}{{ "%.2f"|format(crypto.price_change_percentage_24h) }}%
+                        </span>
+                    {% else %}
+                        <span class="text-muted">N/A</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if crypto.market_cap %}
+                        <span class="fw-bold">${{ "{:,.0f}".format(crypto.market_cap) }}</span>
+                    {% else %}
+                        <span class="text-muted">N/A</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary" 
+                            hx-get="/partials/crypto-details/{{ crypto.id }}"
+                            hx-target="#crypto-modal-content"
+                            hx-trigger="click"
+                            data-bs-toggle="modal"
+                            data-bs-target="#cryptoModal">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    {% if crypto.website %}
+                        <a href="{{ crypto.website }}" target="_blank" class="btn btn-sm btn-outline-secondary ms-1">
+                            <i class="fas fa-external-link-alt"></i>
+                        </a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    {% if cryptocurrencies|length == 0 %}
+    <div class="text-center py-4">
+        <i class="fas fa-search fa-3x text-muted mb-3"></i>
+        <p class="text-muted">Криптовалюты не найдены</p>
+    </div>
+    {% endif %}
+    
+    <!-- Пагинация -->
+    <nav aria-label="Pagination">
+        <ul class="pagination justify-content-center">
+            <li class="page-item">
+                <button class="page-link" 
+                        hx-get="/partials/crypto-table"
+                        hx-target="#crypto-table-container"
+                        hx-include="[name='search']"
+                        hx-vals='{"offset": {{ (current_page - 1) * 50 if current_page > 1 else 0 }}}'>
+                    Предыдущая
+                </button>
+            </li>
+            <li class="page-item active">
+                <span class="page-link">{{ current_page }}</span>
+            </li>
+            <li class="page-item">
+                <button class="page-link"
+                        hx-get="/partials/crypto-table"
+                        hx-target="#crypto-table-container"
+                        hx-include="[name='search']"
+                        hx-vals='{"offset": {{ current_page * 50 }}}'>
+                    Следующая
+                </button>
+            </li>
+        </ul>
+    </nav>
+</div>

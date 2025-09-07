@@ -1,0 +1,152 @@
+<!-- Содержимое модального окна с деталями DeFi протокола -->
+<div class="modal-header">
+    <h5 class="modal-title">
+        <i class="fas fa-chart-area text-success"></i>
+        {{ protocol.name }}
+    </h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+</div>
+
+<div class="modal-body">
+    <div class="row">
+        <!-- Основная информация -->
+        <div class="col-md-6">
+            <h6 class="mb-3"><i class="fas fa-info-circle"></i> Информация о протоколе</h6>
+            <table class="table table-sm">
+                <tbody>
+                    <tr>
+                        <td><strong>ID:</strong></td>
+                        <td>{{ protocol.id }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Категория:</strong></td>
+                        <td>
+                            {% if protocol.category %}
+                                <span class="badge bg-info">{{ protocol.category }}</span>
+                            {% else %}
+                                <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Блокчейн:</strong></td>
+                        <td>
+                            {% if protocol.chain %}
+                                <span class="badge bg-secondary">{{ protocol.chain }}</span>
+                            {% else %}
+                                <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Текущий TVL:</strong></td>
+                        <td>
+                            {% if protocol.tvl %}
+                                <span class="fw-bold text-success">${{ "{:,.0f}".format(protocol.tvl) }}</span>
+                            {% else %}
+                                <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% if protocol.native_token_id %}
+                    <tr>
+                        <td><strong>Нативный токен:</strong></td>
+                        <td>{{ protocol.native_token_id }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if protocol.website %}
+                    <tr>
+                        <td><strong>Сайт:</strong></td>
+                        <td>
+                            <a href="{{ protocol.website }}" target="_blank" class="text-decoration-none">
+                                <i class="fas fa-external-link-alt"></i> Перейти
+                            </a>
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- График TVL (заглушка для будущего развития) -->
+        <div class="col-md-6">
+            <h6 class="mb-3"><i class="fas fa-chart-area"></i> График TVL</h6>
+            <div class="bg-light p-4 text-center rounded">
+                <i class="fas fa-chart-area fa-3x text-muted mb-3"></i>
+                <p class="text-muted mb-0">График TVL будет доступен в будущих версиях</p>
+            </div>
+        </div>
+    </div>
+    
+    {% if protocol.description %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <h6><i class="fas fa-align-left"></i> Описание</h6>
+            <div class="bg-light p-3 rounded">
+                <p class="mb-0">{{ protocol.description[:300] }}{% if protocol.description|length > 300 %}...{% endif %}</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- История TVL -->
+    {% if tvl_history %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <h6><i class="fas fa-history"></i> Последние данные TVL</h6>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Дата</th>
+                            <th>TVL</th>
+                            <th>Изменение 24ч</th>
+                            <th>Изменение %</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tvl in tvl_history %}
+                        <tr>
+                            <td>{{ tvl.timestamp.strftime('%Y-%m-%d %H:%M') if tvl.timestamp else 'N/A' }}</td>
+                            <td>
+                                {% if tvl.tvl %}
+                                    <span class="fw-bold text-success">${{ "{:,.0f}".format(tvl.tvl) }}</span>
+                                {% else %}
+                                    <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if tvl.tvl_change_24h is not none %}
+                                    <span class="text-{{ 'success' if tvl.tvl_change_24h >= 0 else 'danger' }}">
+                                        {{ "+" if tvl.tvl_change_24h >= 0 else "" }}${{ "{:,.0f}".format(tvl.tvl_change_24h) }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if tvl.tvl_change_percentage_24h is not none %}
+                                    <span class="text-{{ 'success' if tvl.tvl_change_percentage_24h >= 0 else 'danger' }}">
+                                        {{ "+" if tvl.tvl_change_percentage_24h >= 0 else "" }}{{ "%.2f"|format(tvl.tvl_change_percentage_24h) }}%
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<div class="modal-footer">
+    <div class="text-muted small">
+        Создан: {{ protocol.created_at.strftime('%Y-%m-%d %H:%M') if protocol.created_at else 'N/A' }} |
+        Обновлен: {{ protocol.updated_at.strftime('%Y-%m-%d %H:%M') if protocol.updated_at else 'N/A' }}
+    </div>
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+</div>

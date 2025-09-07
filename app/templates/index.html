@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}Главная - Crypto DeFi Analyzer{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="jumbotron bg-primary text-white p-5 rounded mb-4">
+            <h1 class="display-4">Crypto DeFi Analyzer</h1>
+            <p class="lead">Платформа для анализа данных криптовалют и DeFi протоколов с интерактивными графиками и таблицами</p>
+            <hr class="my-4">
+            <p>Используйте навигационные ссылки выше для просмотра различных разделов аналитики</p>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-coins fa-3x text-warning mb-3"></i>
+                <h5 class="card-title">Криптовалюты</h5>
+                <p class="card-text">Просмотр данных по криптовалютам, ценовой истории и рыночных показателей</p>
+                <a href="/cryptocurrencies" class="btn btn-warning">Перейти</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-chart-area fa-3x text-success mb-3"></i>
+                <h5 class="card-title">DeFi Протоколы</h5>
+                <p class="card-text">Анализ протоколов децентрализованных финансов и показателей TVL</p>
+                <a href="/defi" class="btn btn-success">Перейти</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-chart-line fa-3x text-info mb-3"></i>
+                <h5 class="card-title">Аналитика</h5>
+                <p class="card-text">Статистический анализ, корреляции и визуализация данных</p>
+                <a href="/analytics" class="btn btn-info">Перейти</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-info-circle"></i> О проекте</h5>
+            </div>
+            <div class="card-body">
+                <p>Этот проект создан для выполнения лабораторных работ по анализу данных и включает в себя:</p>
+                <ul class="list-unstyled">
+                    <li><i class="fas fa-check text-success"></i> <strong>Лабораторная работа №1:</strong> Работа с базами данных и вывод данных в виде таблиц</li>
+                    <li><i class="fas fa-clock text-warning"></i> <strong>Лабораторная работа №2:</strong> Представление данных с проверкой на нормальность и корреляционный анализ</li>
+                    <li><i class="fas fa-clock text-warning"></i> <strong>Лабораторная работа №3:</strong> Аппроксимация данных полиномами и прогнозирование</li>
+                    <li><i class="fas fa-clock text-warning"></i> <strong>Лабораторная работа №4:</strong> Применение метода K-means к выбранным данным</li>
+                </ul>
+                
+                <h6 class="mt-4">Технологический стек:</h6>
+                <div class="row">
+                    <div class="col-md-6">
+                        <ul class="list-unstyled">
+                            <li><i class="fab fa-python"></i> Python 3.11+</li>
+                            <li><i class="fas fa-server"></i> FastAPI</li>
+                            <li><i class="fas fa-database"></i> ClickHouse</li>
+                            <li><i class="fab fa-docker"></i> Docker</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-code"></i> SQLAlchemy</li>
+                            <li><i class="fas fa-chart-bar"></i> Plotly</li>
+                            <li><i class="fab fa-bootstrap"></i> Bootstrap 5</li>
+                            <li><i class="fas fa-brain"></i> Scikit-learn</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Проверяем статус подключения к базе данных
+    checkDatabaseConnection();
+});
+
+async function checkDatabaseConnection() {
+    try {
+        const response = await fetch('/api/cryptocurrencies?limit=1');
+        if (response.ok) {
+            showAlert('База данных подключена успешно', 'success');
+        } else {
+            showAlert('Проблема с подключением к базе данных', 'warning');
+        }
+    } catch (error) {
+        showAlert('Ошибка подключения к серверу', 'danger');
+    }
+}
+
+function showAlert(message, type) {
+    const alertHtml = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    const container = document.querySelector('.container');
+    container.insertAdjacentHTML('afterbegin', alertHtml);
+    
+    // Автоматически скрыть через 5 секунд
+    setTimeout(() => {
+        const alert = document.querySelector('.alert');
+        if (alert) {
+            alert.remove();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

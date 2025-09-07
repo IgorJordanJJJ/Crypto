@@ -1,0 +1,132 @@
+<!-- Содержимое модального окна с деталями криптовалюты -->
+<div class="modal-header">
+    <h5 class="modal-title">
+        <i class="fas fa-coins text-warning"></i>
+        {{ cryptocurrency.name }} ({{ cryptocurrency.symbol.upper() }})
+    </h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+</div>
+
+<div class="modal-body">
+    <div class="row">
+        <!-- Основная информация -->
+        <div class="col-md-6">
+            <h6 class="mb-3"><i class="fas fa-info-circle"></i> Основная информация</h6>
+            <table class="table table-sm">
+                <tbody>
+                    <tr>
+                        <td><strong>ID:</strong></td>
+                        <td>{{ cryptocurrency.id }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Символ:</strong></td>
+                        <td><span class="badge bg-primary">{{ cryptocurrency.symbol.upper() }}</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Ранг:</strong></td>
+                        <td>
+                            {% if cryptocurrency.market_cap_rank %}
+                                <span class="badge bg-secondary">#{{ cryptocurrency.market_cap_rank }}</span>
+                            {% else %}
+                                <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Блокчейн:</strong></td>
+                        <td>{{ cryptocurrency.blockchain or 'N/A' }}</td>
+                    </tr>
+                    {% if cryptocurrency.website %}
+                    <tr>
+                        <td><strong>Сайт:</strong></td>
+                        <td>
+                            <a href="{{ cryptocurrency.website }}" target="_blank" class="text-decoration-none">
+                                <i class="fas fa-external-link-alt"></i> Перейти
+                            </a>
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- График цен (заглушка для будущего развития) -->
+        <div class="col-md-6">
+            <h6 class="mb-3"><i class="fas fa-chart-line"></i> График цен</h6>
+            <div class="bg-light p-4 text-center rounded">
+                <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                <p class="text-muted mb-0">График будет доступен в будущих версиях</p>
+            </div>
+        </div>
+    </div>
+    
+    {% if cryptocurrency.description %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <h6><i class="fas fa-align-left"></i> Описание</h6>
+            <div class="bg-light p-3 rounded">
+                <p class="mb-0">{{ cryptocurrency.description[:300] }}{% if cryptocurrency.description|length > 300 %}...{% endif %}</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- История цен -->
+    {% if price_history %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <h6><i class="fas fa-history"></i> Последние данные цен</h6>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Дата</th>
+                            <th>Цена USD</th>
+                            <th>Объем 24ч</th>
+                            <th>Изменение %</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for price in price_history %}
+                        <tr>
+                            <td>{{ price.timestamp.strftime('%Y-%m-%d %H:%M') if price.timestamp else 'N/A' }}</td>
+                            <td>
+                                {% if price.price_usd %}
+                                    <strong>${{ "%.6f"|format(price.price_usd) if price.price_usd < 1 else "%.2f"|format(price.price_usd) }}</strong>
+                                {% else %}
+                                    <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if price.volume_24h %}
+                                    ${{ "{:,.0f}".format(price.volume_24h) }}
+                                {% else %}
+                                    <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if price.price_change_percentage_24h is not none %}
+                                    <span class="text-{{ 'success' if price.price_change_percentage_24h >= 0 else 'danger' }}">
+                                        {{ "+" if price.price_change_percentage_24h >= 0 else "" }}{{ "%.2f"|format(price.price_change_percentage_24h) }}%
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<div class="modal-footer">
+    <div class="text-muted small">
+        Создано: {{ cryptocurrency.created_at.strftime('%Y-%m-%d %H:%M') if cryptocurrency.created_at else 'N/A' }} |
+        Обновлено: {{ cryptocurrency.updated_at.strftime('%Y-%m-%d %H:%M') if cryptocurrency.updated_at else 'N/A' }}
+    </div>
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+</div>

@@ -1,0 +1,114 @@
+<!-- Таблица DeFi протоколов для HTMX обновления -->
+<div id="defi-table-container">
+    <table class="table table-hover table-striped">
+        <thead class="table-dark">
+            <tr>
+                <th>Название</th>
+                <th>Категория</th>
+                <th>Блокчейн</th>
+                <th>TVL</th>
+                <th>Изменение TVL 24ч</th>
+                <th>Обновлено</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for protocol in protocols %}
+            <tr>
+                <td>
+                    <div>
+                        <strong>{{ protocol.name }}</strong>
+                        {% if protocol.description %}
+                            <br><small class="text-muted">{{ protocol.description[:60] }}...</small>
+                        {% endif %}
+                    </div>
+                </td>
+                <td>
+                    {% if protocol.category %}
+                        <span class="badge bg-info">{{ protocol.category }}</span>
+                    {% else %}
+                        <span class="text-muted">N/A</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if protocol.chain %}
+                        <span class="badge bg-secondary">{{ protocol.chain }}</span>
+                    {% else %}
+                        <span class="text-muted">N/A</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if protocol.current_tvl or protocol.tvl %}
+                        <span class="fw-bold text-success">${{ "{:,.0f}".format(protocol.current_tvl or protocol.tvl) }}</span>
+                    {% else %}
+                        <span class="text-muted">N/A</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if protocol.tvl_change_percentage_24h is not none %}
+                        <span class="badge bg-{{ 'success' if protocol.tvl_change_percentage_24h >= 0 else 'danger' }}">
+                            {{ "+" if protocol.tvl_change_percentage_24h >= 0 else "" }}{{ "%.2f"|format(protocol.tvl_change_percentage_24h) }}%
+                        </span>
+                    {% else %}
+                        <span class="text-muted">N/A</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <small class="text-muted">
+                        {{ protocol.updated_at.strftime('%Y-%m-%d %H:%M') if protocol.updated_at else 'N/A' }}
+                    </small>
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary"
+                            hx-get="/partials/defi-details/{{ protocol.id }}"
+                            hx-target="#defi-modal-content"
+                            hx-trigger="click"
+                            data-bs-toggle="modal"
+                            data-bs-target="#defiModal">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    {% if protocol.website %}
+                        <a href="{{ protocol.website }}" target="_blank" class="btn btn-sm btn-outline-secondary ms-1">
+                            <i class="fas fa-external-link-alt"></i>
+                        </a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    {% if protocols|length == 0 %}
+    <div class="text-center py-4">
+        <i class="fas fa-search fa-3x text-muted mb-3"></i>
+        <p class="text-muted">DeFi протоколы не найдены</p>
+    </div>
+    {% endif %}
+    
+    <!-- Пагинация -->
+    <nav aria-label="Pagination">
+        <ul class="pagination justify-content-center">
+            <li class="page-item">
+                <button class="page-link"
+                        hx-get="/partials/defi-table"
+                        hx-target="#defi-table-container"
+                        hx-include="[name='category'], [name='chain']"
+                        hx-vals='{"offset": {{ (current_page - 1) * 50 if current_page > 1 else 0 }}}'>
+                    Предыдущая
+                </button>
+            </li>
+            <li class="page-item active">
+                <span class="page-link">{{ current_page }}</span>
+            </li>
+            <li class="page-item">
+                <button class="page-link"
+                        hx-get="/partials/defi-table"
+                        hx-target="#defi-table-container"
+                        hx-include="[name='category'], [name='chain']"
+                        hx-vals='{"offset": {{ current_page * 50 }}}'>
+                    Следующая
+                </button>
+            </li>
+        </ul>
+    </nav>
+</div>

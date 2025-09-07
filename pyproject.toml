@@ -1,0 +1,40 @@
+[tool.poetry]
+name = "crypto-defi-analyzer"
+version = "0.1.0"
+description = "Cryptocurrency and DeFi data analysis application with FastAPI and ClickHouse"
+authors = ["Your Name <your.email@example.com>"]
+readme = "README.md"
+packages = [
+    { include = "app" },
+]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.104.1"
+uvicorn = {extras = ["standard"], version = "^0.24.0"}
+clickhouse-connect = "^0.6.21"
+sqlalchemy = "^2.0.23"
+alembic = "^1.13.1"
+pydantic = "^2.5.0"
+pydantic-settings = "^2.1.0"
+httpx = "^0.25.2"
+jinja2 = "^3.1.2"
+python-multipart = "^0.0.6"
+aiofiles = "^23.2.1"
+apscheduler = "^3.10.4"
+pandas = "^2.1.4"
+numpy = "^1.25.2"
+plotly = "^5.17.0"
+scikit-learn = "^1.3.2"
+dataclasses-json = "^0.6.3"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.3"
+pytest-asyncio = "^0.21.1"
+black = "^23.11.0"
+isort = "^5.12.0"
+flake8 = "^6.1.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

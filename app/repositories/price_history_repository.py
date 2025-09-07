@@ -47,33 +47,65 @@ class PriceHistoryRepository(BaseRepository[PriceHistory]):
         finally:
             db.close()
     
-    def get_top_gainers(self, limit: int = 10) -> List[PriceHistory]:
+    def get_top_gainers(self, limit: int = 10) -> List[dict]:
         """Получение топ растущих криптовалют за 24ч"""
         one_day_ago = datetime.utcnow() - timedelta(days=1)
         db = self._get_db()
         try:
-            return (db.query(self.model_class)
-                   .options(joinedload(self.model_class.cryptocurrency))
-                   .filter(self.model_class.timestamp >= one_day_ago)
-                   .filter(self.model_class.price_change_percentage_24h > 0)
-                   .order_by(desc(self.model_class.price_change_percentage_24h))
-                   .limit(limit)
-                   .all())
+            results = (db.query(self.model_class)
+                      .options(joinedload(self.model_class.cryptocurrency))
+                      .filter(self.model_class.timestamp >= one_day_ago)
+                      .filter(self.model_class.price_change_percentage_24h > 0)
+                      .order_by(desc(self.model_class.price_change_percentage_24h))
+                      .limit(limit)
+                      .all())
+            
+            # Конвертируем в словари для JSON сериализации
+            gainers = []
+            for price_record in results:
+                gainers.append({
+                    'id': price_record.cryptocurrency.id if price_record.cryptocurrency else price_record.cryptocurrency_id,
+                    'symbol': price_record.cryptocurrency.symbol if price_record.cryptocurrency else 'Unknown',
+                    'name': price_record.cryptocurrency.name if price_record.cryptocurrency else 'Unknown',
+                    'current_price': float(price_record.price_usd) if price_record.price_usd else 0,
+                    'price_change_percentage_24h': float(price_record.price_change_percentage_24h) if price_record.price_change_percentage_24h else 0,
+                    'volume_24h': float(price_record.volume_24h) if price_record.volume_24h else 0,
+                    'market_cap': float(price_record.market_cap) if price_record.market_cap else 0,
+                    'timestamp': price_record.timestamp
+                })
+            
+            return gainers
         finally:
             db.close()
     
-    def get_top_losers(self, limit: int = 10) -> List[PriceHistory]:
+    def get_top_losers(self, limit: int = 10) -> List[dict]:
         """Получение топ падающих криптовалют за 24ч"""
         one_day_ago = datetime.utcnow() - timedelta(days=1)
         db = self._get_db()
         try:
-            return (db.query(self.model_class)
-                   .options(joinedload(self.model_class.cryptocurrency))
-                   .filter(self.model_class.timestamp >= one_day_ago)
-                   .filter(self.model_class.price_change_percentage_24h < 0)
-                   .order_by(self.model_class.price_change_percentage_24h.asc())
-                   .limit(limit)
-                   .all())
+            results = (db.query(self.model_class)
+                      .options(joinedload(self.model_class.cryptocurrency))
+                      .filter(self.model_class.timestamp >= one_day_ago)
+                      .filter(self.model_class.price_change_percentage_24h < 0)
+                      .order_by(self.model_class.price_change_percentage_24h.asc())
+                      .limit(limit)
+                      .all())
+            
+            # Конвертируем в словари для JSON сериализации
+            losers = []
+            for price_record in results:
+                losers.append({
+                    'id': price_record.cryptocurrency.id if price_record.cryptocurrency else price_record.cryptocurrency_id,
+                    'symbol': price_record.cryptocurrency.symbol if price_record.cryptocurrency else 'Unknown',
+                    'name': price_record.cryptocurrency.name if price_record.cryptocurrency else 'Unknown',
+                    'current_price': float(price_record.price_usd) if price_record.price_usd else 0,
+                    'price_change_percentage_24h': float(price_record.price_change_percentage_24h) if price_record.price_change_percentage_24h else 0,
+                    'volume_24h': float(price_record.volume_24h) if price_record.volume_24h else 0,
+                    'market_cap': float(price_record.market_cap) if price_record.market_cap else 0,
+                    'timestamp': price_record.timestamp
+                })
+            
+            return losers
         finally:
             db.close()
 

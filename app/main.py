@@ -7,7 +7,7 @@ from .controllers.defi_controller import create_defi_router
 from .controllers.data_controller import create_data_router
 from .controllers.web_controller import create_web_router
 from .core.config import settings
-from .core.database import create_database, get_engine
+from .core.database import get_engine
 
 
 logging.basicConfig(level=logging.INFO)
@@ -17,12 +17,7 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    try:
-        logger.info("Initializing database...")
-        create_database()
-        logger.info("Database initialized successfully")
-    except Exception as e:
-        logger.error(f"Failed to initialize database: {e}")
+    logger.info("Application startup - database should be migrated via Alembic")
     
     yield
     

@@ -36,6 +36,10 @@ services:
       - POSTGRES_DATABASE=crypto_analytics
       - COINGECKO_API_KEY=${COINGECKO_API_KEY:-}
       - DEBUG=${DEBUG:-false}
+      - DEV_MODE=${DEV_MODE:-false}
+      - WORKERS=${WORKERS:-2}
+      - THREADS=${THREADS:-4}
+      - TIMEOUT=${TIMEOUT:-60}
     depends_on:
       postgres:
         condition: service_healthy
@@ -61,6 +65,7 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
       - POSTGRES_DATABASE=crypto_analytics
       - COINGECKO_API_KEY=${COINGECKO_API_KEY:-}
+      - DEV_MODE=false
     depends_on:
       postgres:
         condition: service_healthy

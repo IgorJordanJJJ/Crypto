@@ -24,10 +24,27 @@ def get_db() -> Generator[Session, None, None]:
         db.close()
 
 
-def create_database():
-    """Create database and tables using SQLAlchemy models"""
-    from app.models.base import Base
-    Base.metadata.create_all(bind=engine)
+def run_migrations():
+    """Run Alembic migrations programmatically"""
+    try:
+        from alembic.config import Config
+        from alembic import command
+        import os
+        
+        # Get the project root directory (where alembic.ini is located)
+        from pathlib import Path
+        project_root = Path(__file__).parent.parent.parent
+        alembic_cfg_path = project_root / "alembic.ini"
+        
+        if not alembic_cfg_path.exists():
+            raise FileNotFoundError(f"alembic.ini not found at {alembic_cfg_path}")
+        
+        alembic_cfg = Config(str(alembic_cfg_path))
+        command.upgrade(alembic_cfg, "head")
+        return True
+    except Exception as e:
+        print(f"Migration error: {e}")
+        return False
 
 
 def get_engine():

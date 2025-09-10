@@ -17,17 +17,20 @@ sys.path.insert(0, str(project_root))
 
 from app.main import app
 from app.services.batch_processor import data_processor
-from app.core.database import create_database
+from app.core.database import run_migrations
 from alembic.config import Config
 from alembic import command
 
 
 def init_database():
-    """Initialize the database and create tables."""
-    print("🔄 Initializing database...")
+    """Initialize the database using Alembic migrations."""
+    print("🔄 Initializing database using Alembic migrations...")
     try:
-        create_database()
-        print("✅ Database initialized successfully!")
+        if run_migrations():
+            print("✅ Database initialized successfully!")
+        else:
+            print("❌ Failed to initialize database")
+            sys.exit(1)
     except Exception as e:
         print(f"❌ Failed to initialize database: {e}")
         sys.exit(1)
@@ -233,8 +236,7 @@ def main():
         asyncio.run(run_scheduler())
         
     elif args.command == 'setup':
-        init_database()
-        run_alembic_migrations()
+        run_alembic_migrations()  # Use direct Alembic instead of init_database
         asyncio.run(load_initial_data())
         print("🎉 Full setup completed! You can now run 'python run.py dev' to start the server.")
 

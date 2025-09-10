@@ -107,13 +107,126 @@
             </table>
         </div>
         
-        <!-- График цен (заглушка для будущего развития) -->
+        <!-- График цен -->
         <div class="col-md-6">
             <h6 class="mb-3"><i class="fas fa-chart-line"></i> График цен</h6>
-            <div class="bg-light p-4 text-center rounded">
-                <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
-                <p class="text-muted mb-0">График будет доступен в будущих версиях</p>
-            </div>
+            {% if price_history and price_history|length > 1 %}
+                <div id="priceChart" style="height: 300px; width: 100%;"></div>
+                <script>
+                // Ожидание загрузки Plotly перед построением графиков
+                function initPriceChart() {
+                    if (typeof Plotly === 'undefined') {
+                        setTimeout(initPriceChart, 100);
+                        return;
+                    }
+                    // Подготовка данных для графика
+                    const priceData = [
+                        {% for price in price_history %}
+                        {
+                            timestamp: '{{ price.timestamp.strftime("%Y-%m-%d %H:%M") if price.timestamp else "" }}',
+                            price: {{ price.price_usd|float if price.price_usd else 0 }},
+                            volume: {{ price.volume_24h|float if price.volume_24h else 0 }},
+                            bidPrice: {{ price.bid_price|float if price.bid_price else null }},
+                            askPrice: {{ price.ask_price|float if price.ask_price else null }}
+                        }{% if not loop.last %},{% endif %}
+                        {% endfor %}
+                    ];
+                    
+                    // Сортировка по времени (по возрастанию)
+                    priceData.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                    
+                    const timestamps = priceData.map(d => d.timestamp);
+                    const prices = priceData.map(d => d.price);
+                    const volumes = priceData.map(d => d.volume);
+                    const bidPrices = priceData.map(d => d.bidPrice).filter(p => p !== null);
+                    const askPrices = priceData.map(d => d.askPrice).filter(p => p !== null);
+                    
+                    const traces = [];
+                    
+                    // Основная линия цены
+                    traces.push({
+                        x: timestamps,
+                        y: prices,
+                        type: 'scatter',
+                        mode: 'lines+markers',
+                        name: 'Цена',
+                        line: { color: '#007bff', width: 2 },
+                        marker: { size: 4 },
+                        hovertemplate: '<b>%{x}</b><br>Цена: $%{y:.6f}<extra></extra>'
+                    });
+                    
+                    // Линия Bid цены (если есть данные)
+                    if (bidPrices.length > 0) {
+                        const bidTimestamps = priceData.filter(d => d.bidPrice !== null).map(d => d.timestamp);
+                        const bidValues = priceData.filter(d => d.bidPrice !== null).map(d => d.bidPrice);
+                        traces.push({
+                            x: bidTimestamps,
+                            y: bidValues,
+                            type: 'scatter',
+                            mode: 'lines',
+                            name: 'Bid Price',
+                            line: { color: '#28a745', width: 1, dash: 'dot' },
+                            hovertemplate: '<b>%{x}</b><br>Bid: $%{y:.6f}<extra></extra>'
+                        });
+                    }
+                    
+                    // Линия Ask цены (если есть данные)
+                    if (askPrices.length > 0) {
+                        const askTimestamps = priceData.filter(d => d.askPrice !== null).map(d => d.timestamp);
+                        const askValues = priceData.filter(d => d.askPrice !== null).map(d => d.askPrice);
+                        traces.push({
+                            x: askTimestamps,
+                            y: askValues,
+                            type: 'scatter',
+                            mode: 'lines',
+                            name: 'Ask Price',
+                            line: { color: '#dc3545', width: 1, dash: 'dot' },
+                            hovertemplate: '<b>%{x}</b><br>Ask: $%{y:.6f}<extra></extra>'
+                        });
+                    }
+                    
+                    const layout = {
+                        title: {
+                            text: 'История цен {{ cryptocurrency.symbol.upper() }}',
+                            font: { size: 14 }
+                        },
+                        xaxis: {
+                            title: 'Время',
+                            type: 'date',
+                            tickformat: '%m-%d %H:%M'
+                        },
+                        yaxis: {
+                            title: 'Цена (USD)',
+                            tickformat: '$.6f'
+                        },
+                        margin: { t: 40, b: 40, l: 60, r: 20 },
+                        showlegend: true,
+                        legend: {
+                            orientation: 'h',
+                            x: 0,
+                            y: -0.2
+                        },
+                        hovermode: 'x unified'
+                    };
+                    
+                    const config = {
+                        responsive: true,
+                        displayModeBar: true,
+                        modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d', 'autoScale2d'],
+                        displaylogo: false
+                    };
+                    
+                    Plotly.newPlot('priceChart', traces, layout, config);
+                }
+                initPriceChart();
+                </script>
+            {% else %}
+                <div class="bg-light p-4 text-center rounded">
+                    <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                    <p class="text-muted mb-0">Недостаточно данных для построения графика</p>
+                    <small class="text-muted">Требуется минимум 2 точки данных</small>
+                </div>
+            {% endif %}
         </div>
     </div>
     
@@ -124,6 +237,104 @@
             <div class="bg-light p-3 rounded">
                 <p class="mb-0">{{ cryptocurrency.description[:300] }}{% if cryptocurrency.description|length > 300 %}...{% endif %}</p>
             </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- График объемов торгов -->
+    {% if price_history and price_history|length > 1 %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <h6><i class="fas fa-chart-bar"></i> Объем торгов 24ч</h6>
+            <div id="volumeChart" style="height: 200px; width: 100%;"></div>
+            <script>
+            // Ожидание загрузки Plotly перед построением графика объемов
+            function initVolumeChart() {
+                if (typeof Plotly === 'undefined') {
+                    setTimeout(initVolumeChart, 100);
+                    return;
+                }
+                // Подготовка данных для графика объемов
+                const volumeData = [
+                    {% for price in price_history %}
+                    {
+                        timestamp: '{{ price.timestamp.strftime("%Y-%m-%d %H:%M") if price.timestamp else "" }}',
+                        volume: {{ price.volume_24h|float if price.volume_24h else 0 }},
+                        turnover: {{ price.turnover_24h|float if price.turnover_24h else 0 }}
+                    }{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                ];
+                
+                // Сортировка по времени
+                volumeData.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                
+                const timestamps = volumeData.map(d => d.timestamp);
+                const volumes = volumeData.map(d => d.volume);
+                const turnovers = volumeData.map(d => d.turnover);
+                
+                const traces = [];
+                
+                // Объем торгов
+                if (volumes.some(v => v > 0)) {
+                    traces.push({
+                        x: timestamps,
+                        y: volumes,
+                        type: 'bar',
+                        name: 'Объем',
+                        marker: { color: '#17a2b8', opacity: 0.7 },
+                        hovertemplate: '<b>%{x}</b><br>Объем: $%{y:,.0f}<extra></extra>'
+                    });
+                }
+                
+                // Оборот (если есть данные)
+                if (turnovers.some(t => t > 0)) {
+                    traces.push({
+                        x: timestamps,
+                        y: turnovers,
+                        type: 'bar',
+                        name: 'Оборот',
+                        marker: { color: '#ffc107', opacity: 0.7 },
+                        hovertemplate: '<b>%{x}</b><br>Оборот: $%{y:,.0f}<extra></extra>'
+                    });
+                }
+                
+                const layout = {
+                    title: {
+                        text: 'Объем и оборот торгов',
+                        font: { size: 12 }
+                    },
+                    xaxis: {
+                        title: 'Время',
+                        type: 'date',
+                        tickformat: '%m-%d %H:%M'
+                    },
+                    yaxis: {
+                        title: 'Объем (USD)',
+                        tickformat: '$,.0f'
+                    },
+                    margin: { t: 30, b: 40, l: 80, r: 20 },
+                    showlegend: true,
+                    legend: {
+                        orientation: 'h',
+                        x: 0,
+                        y: -0.3
+                    },
+                    barmode: 'overlay'
+                };
+                
+                const config = {
+                    responsive: true,
+                    displayModeBar: false
+                };
+                
+                if (traces.length > 0) {
+                    Plotly.newPlot('volumeChart', traces, layout, config);
+                } else {
+                    document.getElementById('volumeChart').innerHTML = '<div class="text-center text-muted p-3">Нет данных об объеме торгов</div>';
+                }
+            }
+            initVolumeChart();
+            </script>
         </div>
     </div>
     {% endif %}
@@ -145,7 +356,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for price in price_history %}
+                        {% for price in price_history_table %}
                         <tr>
                             <td>{{ price.timestamp.strftime('%Y-%m-%d %H:%M') if price.timestamp else 'N/A' }}</td>
                             <td>

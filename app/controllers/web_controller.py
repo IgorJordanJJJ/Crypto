@@ -163,7 +163,8 @@ class WebController:
             return templates.TemplateResponse("partials/crypto_details_modal.html", {
                 "request": request,
                 "cryptocurrency": crypto_data,
-                "price_history": price_history[:10]  # Ограничиваем для отображения в таблице
+                "price_history": price_history,  # Полные данные для графиков
+                "price_history_table": price_history[:10]  # Ограниченные данные для таблицы
             })
             
         except Exception as e:

@@ -427,9 +427,6 @@ poetry env use 3.12
 # Теперь должно создаться в папке проекта
 poetry env info
 
-# Должно показать путь типа:
-# C:\Users\Zver\Desktop\Data_Visualization\Lab_1\Lab_1\.venv
-
 # Проверяем что папка .venv появилась в проекте
 ls -Force
 

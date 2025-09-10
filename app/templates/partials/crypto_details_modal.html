@@ -50,6 +50,63 @@
             </table>
         </div>
         
+        <!-- Ликвидность и торговля -->
+        <div class="col-md-6">
+            <h6 class="mb-3"><i class="fas fa-chart-bar"></i> Ликвидность и торговля</h6>
+            <table class="table table-sm">
+                <tbody>
+                    <!-- Latest price data from first price history entry -->
+                    {% if price_history and price_history|length > 0 %}
+                        {% set latest_price = price_history[0] %}
+                        {% if latest_price.bid_price %}
+                        <tr>
+                            <td><strong>Bid Price:</strong></td>
+                            <td class="text-success">${{ "%.6f"|format(latest_price.bid_price) if latest_price.bid_price < 1 else "%.4f"|format(latest_price.bid_price) }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Ask Price:</strong></td>
+                            <td class="text-danger">${{ "%.6f"|format(latest_price.ask_price) if latest_price.ask_price < 1 else "%.4f"|format(latest_price.ask_price) }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if latest_price.bid_size %}
+                        <tr>
+                            <td><strong>Bid Size:</strong></td>
+                            <td>{{ "{:,.2f}".format(latest_price.bid_size) }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Ask Size:</strong></td>
+                            <td>{{ "{:,.2f}".format(latest_price.ask_size) }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if latest_price.turnover_24h %}
+                        <tr>
+                            <td><strong>Оборот 24ч:</strong></td>
+                            <td class="fw-bold">${{ "{:,.0f}".format(latest_price.turnover_24h) }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if latest_price.usd_index_price %}
+                        <tr>
+                            <td><strong>Index Price:</strong></td>
+                            <td class="text-info">${{ "%.6f"|format(latest_price.usd_index_price) if latest_price.usd_index_price < 1 else "%.4f"|format(latest_price.usd_index_price) }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if latest_price.prev_price_24h %}
+                        <tr>
+                            <td><strong>Цена 24ч назад:</strong></td>
+                            <td>${{ "%.6f"|format(latest_price.prev_price_24h) if latest_price.prev_price_24h < 1 else "%.4f"|format(latest_price.prev_price_24h) }}</td>
+                        </tr>
+                        {% endif %}
+                    {% else %}
+                        <tr>
+                            <td colspan="2">
+                                <span class="text-muted">Данные о ликвидности недоступны</span>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+        
         <!-- График цен (заглушка для будущего развития) -->
         <div class="col-md-6">
             <h6 class="mb-3"><i class="fas fa-chart-line"></i> График цен</h6>
@@ -82,7 +139,8 @@
                         <tr>
                             <th>Дата</th>
                             <th>Цена USD</th>
-                            <th>Объем 24ч</th>
+                            <th>Bid/Ask</th>
+                            <th>Объем/Оборот</th>
                             <th>Изменение %</th>
                         </tr>
                     </thead>
@@ -98,7 +156,22 @@
                                 {% endif %}
                             </td>
                             <td>
-                                {% if price.volume_24h %}
+                                {% if price.bid_price and price.ask_price %}
+                                    <div class="small">
+                                        <span class="text-success">${{ "%.4f"|format(price.bid_price) }}</span> /<br>
+                                        <span class="text-danger">${{ "%.4f"|format(price.ask_price) }}</span>
+                                    </div>
+                                {% else %}
+                                    <span class="text-muted small">N/A</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if price.turnover_24h %}
+                                    <strong>${{ "{:,.0f}".format(price.turnover_24h) }}</strong>
+                                    {% if price.volume_24h %}
+                                        <br><small class="text-muted">Vol: {{ "{:,.0f}".format(price.volume_24h) }}</small>
+                                    {% endif %}
+                                {% elif price.volume_24h %}
                                     ${{ "{:,.0f}".format(price.volume_24h) }}
                                 {% else %}
                                     <span class="text-muted">N/A</span>

@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import desc, func, and_
 from sqlalchemy.orm import joinedload
 from .base_repository import BaseRepository
-from ..models.crypto import TVLHistory, DeFiProtocol
+from ..models import TVLHistory, DeFiProtocol
 
 
 class TVLHistoryRepository(BaseRepository[TVLHistory]):

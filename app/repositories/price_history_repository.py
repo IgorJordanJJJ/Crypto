@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import desc, and_
 from sqlalchemy.orm import joinedload
 from .base_repository import BaseRepository
-from ..models.crypto import PriceHistory, Cryptocurrency
+from ..models import PriceHistory, Cryptocurrency
 
 
 class PriceHistoryRepository(BaseRepository[PriceHistory]):

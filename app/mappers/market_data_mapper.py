@@ -1,6 +1,6 @@
 from typing import Dict, Any
 from datetime import datetime
-from ..models.crypto import MarketData
+from ..models import MarketData
 from ..schemas.crypto_schemas import MarketDataResponse
 
 

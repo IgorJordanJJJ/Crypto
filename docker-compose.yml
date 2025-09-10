@@ -5,7 +5,7 @@ services:
     image: postgres:15-alpine
     container_name: crypto-postgres
     ports:
-      - "5432:5432"
+      - "5435:5432"
     environment:
       - POSTGRES_DB=crypto_analytics
       - POSTGRES_USER=postgres

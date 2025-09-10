@@ -42,6 +42,14 @@ class PriceHistoryBase(BaseModel):
     market_cap: Optional[float] = Field(None, ge=0)
     price_change_24h: Optional[float] = None
     price_change_percentage_24h: Optional[float] = None
+    # Bybit specific fields
+    bid_price: Optional[float] = Field(None, ge=0)
+    bid_size: Optional[float] = Field(None, ge=0)
+    ask_price: Optional[float] = Field(None, ge=0)
+    ask_size: Optional[float] = Field(None, ge=0)
+    prev_price_24h: Optional[float] = Field(None, ge=0)
+    turnover_24h: Optional[float] = Field(None, ge=0)
+    usd_index_price: Optional[float] = Field(None, ge=0)
 
 
 class PriceHistoryCreate(PriceHistoryBase):
@@ -66,6 +74,9 @@ class MarketDataBase(BaseModel):
     ath_date: Optional[datetime] = None
     atl_date: Optional[datetime] = None
     roi_percentage: Optional[float] = None
+    # Additional market metrics
+    spread_percentage: Optional[float] = Field(None, ge=0)
+    liquidity_score: Optional[float] = Field(None, ge=0)
 
 
 class MarketDataCreate(MarketDataBase):
@@ -110,3 +121,9 @@ class CryptocurrencyListItem:
     price_change_percentage_24h: Optional[float]
     market_cap: Optional[float]
     updated_at: datetime
+    # Extended Bybit data
+    bid_price: Optional[float] = None
+    ask_price: Optional[float] = None
+    spread_percentage: Optional[float] = None
+    liquidity_score: Optional[float] = None
+    turnover_24h: Optional[float] = None

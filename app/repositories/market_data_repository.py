@@ -2,7 +2,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 from sqlalchemy import desc, func
 from .base_repository import BaseRepository
-from ..models.crypto import MarketData, PriceHistory
+from ..models import MarketData, PriceHistory
 
 
 class MarketDataRepository(BaseRepository[MarketData]):

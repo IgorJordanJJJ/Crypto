@@ -1,6 +1,6 @@
 from typing import List, Optional, Dict, Any
 from datetime import datetime
-from ..models.crypto import Cryptocurrency, PriceHistory, MarketData
+from ..models import Cryptocurrency, PriceHistory, MarketData
 from ..schemas.crypto_schemas import (
     CryptocurrencyResponse, 
     CryptocurrencyDetailResponse,

@@ -1,6 +1,6 @@
 from typing import Dict, Any
 from datetime import datetime
-from ..models.crypto import TVLHistory
+from ..models import TVLHistory
 from ..schemas.defi_schemas import TVLHistoryResponse
 
 

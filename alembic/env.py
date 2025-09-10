@@ -9,7 +9,7 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from app.models.base import Base
-from app.models.crypto import *
+from app.models import *
 from app.core.config import settings
 
 # this is the Alembic Config object, which provides

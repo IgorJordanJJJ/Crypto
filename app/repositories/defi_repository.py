@@ -2,7 +2,7 @@ from typing import List, Optional, Dict, Any
 from sqlalchemy import desc, func
 from sqlalchemy.orm import joinedload
 from .base_repository import BaseRepository
-from ..models.crypto import DeFiProtocol, TVLHistory
+from ..models import DeFiProtocol, TVLHistory
 from ..schemas.defi_schemas import DeFiProtocolFilter
 
 
@@ -70,7 +70,7 @@ class DeFiProtocolRepository(BaseRepository[DeFiProtocol]):
     
     def get_protocols_with_latest_tvl(self, limit: int = 100, offset: int = 0) -> List[dict]:
         """Получение протоколов с последними данными TVL в виде словарей"""
-        from ..models.crypto import TVLHistory
+        from ..models import TVLHistory
         from sqlalchemy import func
         
         db = self._get_db()

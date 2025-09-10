@@ -118,7 +118,15 @@ class DataProcessor:
                     'volume_24h': coin.get('volume_24h'),  # Bybit field
                     'market_cap': coin.get('market_cap'),  # None from Bybit
                     'price_change_24h': coin.get('price_change_24h'),  # Bybit % converted to absolute
-                    'price_change_percentage_24h': coin.get('price_change_24h')  # Bybit % field
+                    'price_change_percentage_24h': coin.get('price_change_24h'),  # Bybit % field
+                    # Bybit specific fields
+                    'bid_price': coin.get('bid_price'),
+                    'bid_size': coin.get('bid_size'),
+                    'ask_price': coin.get('ask_price'),
+                    'ask_size': coin.get('ask_size'),
+                    'prev_price_24h': coin.get('prev_price_24h'),
+                    'turnover_24h': coin.get('turnover_24h'),
+                    'usd_index_price': coin.get('usd_index_price')
                 }
                 price_history.append(price_record)
                 
@@ -133,7 +141,10 @@ class DataProcessor:
                     'ath': coin.get('ath'),
                     'atl': coin.get('atl'),
                     'ath_date': None,  # YFinance/Bybit don't provide formatted dates
-                    'atl_date': None   # YFinance/Bybit don't provide formatted dates
+                    'atl_date': None,  # YFinance/Bybit don't provide formatted dates
+                    # Additional market metrics
+                    'spread_percentage': coin.get('spread_percentage'),
+                    'liquidity_score': coin.get('liquidity_score')
                 }
                 market_data_records.append(market_record)
             
@@ -228,7 +239,7 @@ class DataProcessor:
             from ..repositories.market_data_repository import MarketDataRepository
             from ..repositories.defi_repository import DeFiProtocolRepository
             from ..repositories.tvl_history_repository import TVLHistoryRepository
-            from ..models.crypto import Cryptocurrency, PriceHistory, MarketData, DeFiProtocol, TVLHistory
+            from ..models import Cryptocurrency, PriceHistory, MarketData, DeFiProtocol, TVLHistory
             
             if table == 'cryptocurrencies':
                 repo = CryptocurrencyRepository()

@@ -79,6 +79,16 @@ class BybitFetcher(DataFetcherBase):
         for ticker in tickers:
             if ticker.get("symbol", "").endswith("USDT"):
                 symbol_name = ticker.get("symbol", "").replace("USDT", "")
+                # Calculate spread percentage for liquidity analysis
+                bid_price = float(ticker.get("bid1Price", 0))
+                ask_price = float(ticker.get("ask1Price", 0))
+                spread_percentage = ((ask_price - bid_price) / ask_price * 100) if ask_price > 0 else 0
+                
+                # Calculate liquidity score based on bid/ask sizes
+                bid_size = float(ticker.get("bid1Size", 0))
+                ask_size = float(ticker.get("ask1Size", 0))
+                liquidity_score = (bid_size + ask_size) / 2  # Simple average
+                
                 spot_data.append({
                     "id": symbol_name.lower(),
                     "symbol": symbol_name,
@@ -89,7 +99,17 @@ class BybitFetcher(DataFetcherBase):
                     "low_24h": float(ticker.get("lowPrice24h", 0)),
                     "volume_24h": float(ticker.get("volume24h", 0)),
                     "market_cap": None,  # Bybit doesn't provide market cap directly
-                    "market_cap_rank": None
+                    "market_cap_rank": None,
+                    # Additional Bybit specific data
+                    "bid_price": bid_price,
+                    "bid_size": bid_size,
+                    "ask_price": ask_price,
+                    "ask_size": ask_size,
+                    "prev_price_24h": float(ticker.get("prevPrice24h", 0)),
+                    "turnover_24h": float(ticker.get("turnover24h", 0)),
+                    "usd_index_price": float(ticker.get("usdIndexPrice", 0)) if ticker.get("usdIndexPrice") else None,
+                    "spread_percentage": spread_percentage,
+                    "liquidity_score": liquidity_score
                 })
         
         # Sort by volume (proxy for popularity)

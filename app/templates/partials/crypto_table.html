@@ -7,8 +7,10 @@
                 <th>Название</th>
                 <th>Символ</th>
                 <th>Цена</th>
+                <th>Bid/Ask</th>
+                <th>Спред</th>
                 <th>Изменение 24ч</th>
-                <th>Рыночная кап.</th>
+                <th>Объем 24ч</th>
                 <th>Действия</th>
             </tr>
         </thead>
@@ -38,6 +40,28 @@
                 <td>
                     {% if crypto.current_price %}
                         <strong>${{ "%.6f"|format(crypto.current_price) if crypto.current_price < 1 else "%.2f"|format(crypto.current_price) }}</strong>
+                        {% if crypto.usd_index_price and crypto.usd_index_price != crypto.current_price %}
+                            <br><small class="text-info">Index: ${{ "%.6f"|format(crypto.usd_index_price) if crypto.usd_index_price < 1 else "%.2f"|format(crypto.usd_index_price) }}</small>
+                        {% endif %}
+                    {% else %}
+                        <span class="text-muted">N/A</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if crypto.bid_price and crypto.ask_price %}
+                        <div class="small">
+                            <span class="text-success">Buy: ${{ "%.6f"|format(crypto.bid_price) if crypto.bid_price < 1 else "%.4f"|format(crypto.bid_price) }}</span><br>
+                            <span class="text-danger">Sell: ${{ "%.6f"|format(crypto.ask_price) if crypto.ask_price < 1 else "%.4f"|format(crypto.ask_price) }}</span>
+                        </div>
+                    {% else %}
+                        <span class="text-muted small">N/A</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if crypto.spread_percentage is not none and crypto.spread_percentage > 0 %}
+                        <span class="badge bg-{{ 'warning' if crypto.spread_percentage > 1 else 'info' }}">
+                            {{ "%.3f"|format(crypto.spread_percentage) }}%
+                        </span>
                     {% else %}
                         <span class="text-muted">N/A</span>
                     {% endif %}
@@ -52,8 +76,10 @@
                     {% endif %}
                 </td>
                 <td>
-                    {% if crypto.market_cap %}
-                        <span class="fw-bold">${{ "{:,.0f}".format(crypto.market_cap) }}</span>
+                    {% if crypto.turnover_24h %}
+                        <strong>${{ "{:,.0f}".format(crypto.turnover_24h) }}</strong>
+                    {% elif crypto.volume_24h %}
+                        <span class="text-info">${{ "{:,.0f}".format(crypto.volume_24h) }}</span>
                     {% else %}
                         <span class="text-muted">N/A</span>
                     {% endif %}

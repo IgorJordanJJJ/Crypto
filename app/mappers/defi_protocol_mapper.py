@@ -1,6 +1,6 @@
 from typing import List, Optional, Dict, Any
 from datetime import datetime
-from ..models.crypto import DeFiProtocol, TVLHistory
+from ..models import DeFiProtocol, TVLHistory
 from ..schemas.defi_schemas import (
     DeFiProtocolResponse,
     DeFiProtocolDetailResponse,

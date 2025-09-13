@@ -1,0 +1,593 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Заголовок страницы -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="/lab2">Лабораторная работа №2</a></li>
+                    <li class="breadcrumb-item active">Корреляционный анализ</li>
+                </ol>
+            </nav>
+            <div class="d-flex justify-content-between align-items-center">
+                <h1>
+                    <i class="fas fa-th text-success me-2"></i>
+                    Корреляционный анализ
+                </h1>
+                <a href="/lab2" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Назад
+                </a>
+            </div>
+            <p class="text-muted">
+                Визуализация корреляционной матрицы и анализ взаимосвязей между переменными
+            </p>
+        </div>
+    </div>
+
+    <!-- Панель управления -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-sliders-h me-2"></i>
+                        Параметры анализа
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="correlationForm">
+                        <div class="row">
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <label for="dataType" class="form-label">Тип данных</label>
+                                    <select class="form-select" id="dataType" name="dataType">
+                                        <option value="crypto" selected>Криптовалюты</option>
+                                        <option value="defi">DeFi протоколы</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="symbols" class="form-label">Символы/Протоколы</label>
+                                    <input type="text" class="form-control" id="symbols" name="symbols"
+                                           value="BTC,ETH,BNB" placeholder="Через запятую">
+                                    <div class="form-text">Максимум 5 символов для лучшей читаемости</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="fields" class="form-label">Анализируемые поля</label>
+                                    <input type="text" class="form-control" id="fields" name="fields"
+                                           value="price_usd,volume_24h" placeholder="Через запятую">
+                                    <div class="form-text">Поля для корреляционного анализа</div>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <label for="days" class="form-label">Период (дни)</label>
+                                    <select class="form-select" id="days" name="days">
+                                        <option value="7">7 дней</option>
+                                        <option value="14">14 дней</option>
+                                        <option value="30" selected>30 дней</option>
+                                        <option value="60">60 дней</option>
+                                        <option value="90">90 дней</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <label class="form-label">&nbsp;</label>
+                                    <div class="d-grid">
+                                        <button type="submit" class="btn btn-success" id="analyzeBtn">
+                                            <i class="fas fa-chart-pie me-2"></i>
+                                            Анализировать
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Подсказки для полей -->
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <div id="fieldSuggestions" class="d-flex flex-wrap gap-2">
+                                    <!-- Подсказки будут добавлены динамически -->
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Индикатор загрузки -->
+    <div id="loadingIndicator" class="row mb-4" style="display: none;">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center">
+                    <div class="spinner-border text-success" role="status">
+                        <span class="visually-hidden">Загрузка...</span>
+                    </div>
+                    <p class="mt-3 mb-0">Вычисляется корреляционная матрица...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Результаты анализа -->
+    <div id="analysisResults" style="display: none;">
+        <!-- Корреляционная матрица -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-th-large me-2"></i>
+                            Корреляционная матрица
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="correlationHeatmap" style="height: 600px;"></div>
+                        <div class="alert alert-info mt-3">
+                            <h6 class="alert-heading">Интерпретация цветов:</h6>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <p class="mb-0 small">
+                                        <span class="badge bg-danger me-2">Красный</span>
+                                        Сильная отрицательная корреляция (-1 до -0.7)
+                                    </p>
+                                </div>
+                                <div class="col-md-4">
+                                    <p class="mb-0 small">
+                                        <span class="badge bg-light text-dark me-2">Белый</span>
+                                        Слабая корреляция (-0.3 до 0.3)
+                                    </p>
+                                </div>
+                                <div class="col-md-4">
+                                    <p class="mb-0 small">
+                                        <span class="badge bg-primary me-2">Синий</span>
+                                        Сильная положительная корреляция (0.7 до 1)
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scatter plots для топ корреляций -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-scatter me-2"></i>
+                            Scatter plots для сильнейших корреляций
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="scatterPlots" class="row">
+                            <!-- Scatter plots будут добавлены динамически -->
+                        </div>
+                        <div class="alert alert-info mt-3">
+                            <h6 class="alert-heading">Интерпретация scatter plots:</h6>
+                            <ul class="mb-0 small">
+                                <li><strong>Линейное расположение точек</strong> указывает на сильную корреляцию</li>
+                                <li><strong>Восходящая линия</strong> - положительная корреляция</li>
+                                <li><strong>Нисходящая линия</strong> - отрицательная корреляция</li>
+                                <li><strong>Разброс точек</strong> - слабая корреляция</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Статистика корреляций -->
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-line me-2"></i>
+                            Статистика корреляций
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="correlationStats">
+                            <!-- Статистика будет загружена динамически -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-light">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Интерпретация корреляций
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Значение |r|</th>
+                                        <th>Интерпретация</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>0.9 - 1.0</td>
+                                        <td><span class="badge bg-danger">Очень сильная</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>0.7 - 0.9</td>
+                                        <td><span class="badge bg-warning">Сильная</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>0.5 - 0.7</td>
+                                        <td><span class="badge bg-info">Умеренная</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>0.3 - 0.5</td>
+                                        <td><span class="badge bg-secondary">Слабая</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>0.0 - 0.3</td>
+                                        <td><span class="badge bg-light text-dark">Очень слабая</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Выводы -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-lightbulb me-2"></i>
+                            Выводы корреляционного анализа
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="analysisConclusions">
+                            <!-- Выводы будут сгенерированы автоматически -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Сообщения об ошибках -->
+    <div id="errorMessage" class="row" style="display: none;">
+        <div class="col-12">
+            <div class="alert alert-danger" role="alert">
+                <h4 class="alert-heading">Ошибка анализа</h4>
+                <p id="errorText"></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('correlationForm');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    const analysisResults = document.getElementById('analysisResults');
+    const errorMessage = document.getElementById('errorMessage');
+
+    // Определение подсказок для полей
+    const fieldSuggestions = {
+        crypto: [
+            {value: 'price_usd', text: 'Цена USD'},
+            {value: 'volume_24h', text: 'Объем 24ч'},
+            {value: 'market_cap', text: 'Капитализация'},
+            {value: 'price_returns', text: 'Доходность'},
+            {value: 'log_returns', text: 'Лог. доходность'},
+            {value: 'volatility', text: 'Волатильность'}
+        ],
+        defi: [
+            {value: 'tvl', text: 'TVL'},
+            {value: 'tvl_change_24h', text: 'Изменение TVL'},
+            {value: 'tvl_returns', text: 'Доходность TVL'},
+            {value: 'log_tvl', text: 'Лог. TVL'},
+            {value: 'tvl_volatility', text: 'Волатильность TVL'}
+        ]
+    };
+
+    // Обновление подсказок при изменении типа данных
+    document.getElementById('dataType').addEventListener('change', function() {
+        const dataType = this.value;
+        updateFieldSuggestions(dataType);
+        updateDefaultValues(dataType);
+    });
+
+    function updateFieldSuggestions(dataType) {
+        const container = document.getElementById('fieldSuggestions');
+        const suggestions = fieldSuggestions[dataType] || [];
+
+        container.innerHTML = suggestions.map(field =>
+            `<button type="button" class="btn btn-outline-secondary btn-sm field-suggestion"
+                     data-field="${field.value}">${field.text}</button>`
+        ).join('');
+
+        // Добавляем обработчики для подсказок
+        container.querySelectorAll('.field-suggestion').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const field = this.getAttribute('data-field');
+                const fieldsInput = document.getElementById('fields');
+                const currentFields = fieldsInput.value.split(',').map(f => f.trim()).filter(f => f);
+
+                if (!currentFields.includes(field)) {
+                    currentFields.push(field);
+                    fieldsInput.value = currentFields.join(',');
+                }
+            });
+        });
+    }
+
+    function updateDefaultValues(dataType) {
+        const symbolsInput = document.getElementById('symbols');
+        const fieldsInput = document.getElementById('fields');
+
+        if (dataType === 'crypto') {
+            symbolsInput.value = 'BTC,ETH,BNB';
+            fieldsInput.value = 'price_usd,volume_24h';
+        } else {
+            symbolsInput.value = 'Uniswap,Aave,Compound';
+            fieldsInput.value = 'tvl,tvl_change_24h';
+        }
+    }
+
+    // Обработка отправки формы
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        // Показываем индикатор загрузки
+        loadingIndicator.style.display = 'block';
+        analysisResults.style.display = 'none';
+        errorMessage.style.display = 'none';
+        analyzeBtn.disabled = true;
+
+        const formData = new FormData(form);
+        const params = new URLSearchParams();
+        params.append('data_type', formData.get('dataType'));
+        params.append('symbols', formData.get('symbols'));
+        params.append('fields', formData.get('fields'));
+        params.append('days', formData.get('days'));
+
+        try {
+            const response = await fetch(`/lab2/api/correlation-analysis?${params}`, {
+                method: 'POST'
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                displayResults(data.data);
+            } else {
+                showError(data.error);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showError('Ошибка сети или сервера: ' + error.message);
+        } finally {
+            loadingIndicator.style.display = 'none';
+            analyzeBtn.disabled = false;
+        }
+    });
+
+    function displayResults(data) {
+        // Отображаем тепловую карту корреляций
+        const heatmapData = JSON.parse(data.heatmap);
+        Plotly.newPlot('correlationHeatmap', heatmapData.data, heatmapData.layout, {responsive: true});
+
+        // Отображаем scatter plots
+        displayScatterPlots(data.scatter_plots);
+
+        // Отображаем статистику корреляций
+        displayCorrelationStats(data.correlation_stats);
+
+        // Генерируем выводы
+        generateConclusions(data);
+
+        analysisResults.style.display = 'block';
+    }
+
+    function displayScatterPlots(scatterPlots) {
+        const container = document.getElementById('scatterPlots');
+
+        if (scatterPlots.length === 0) {
+            container.innerHTML = `
+                <div class="col-12">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Недостаточно данных для создания scatter plots
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        const plotsHtml = scatterPlots.map((plot, index) => `
+            <div class="col-lg-4 mb-3">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            ${plot.var1} vs ${plot.var2}
+                            <span class="badge ${Math.abs(plot.correlation) > 0.7 ? 'bg-danger' :
+                                               Math.abs(plot.correlation) > 0.5 ? 'bg-warning' :
+                                               Math.abs(plot.correlation) > 0.3 ? 'bg-info' : 'bg-secondary'}">
+                                r = ${plot.correlation.toFixed(3)}
+                            </span>
+                        </h6>
+                    </div>
+                    <div class="card-body p-2">
+                        <div id="scatterPlot${index}" style="height: 300px;"></div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+        container.innerHTML = plotsHtml;
+
+        // Отрисовываем каждый scatter plot
+        scatterPlots.forEach((plot, index) => {
+            const plotData = JSON.parse(plot.plot);
+            Plotly.newPlot(`scatterPlot${index}`, plotData.data, plotData.layout, {responsive: true});
+        });
+    }
+
+    function displayCorrelationStats(stats) {
+        const container = document.getElementById('correlationStats');
+
+        const statsHtml = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Сильнейшая положительная корреляция:</h6>
+                    ${stats.strongest_positive ? `
+                        <div class="card bg-primary text-white mb-3">
+                            <div class="card-body">
+                                <h5>${stats.strongest_positive.var1} ↔ ${stats.strongest_positive.var2}</h5>
+                                <h3>${stats.strongest_positive.correlation.toFixed(3)}</h3>
+                                <small>Сильная положительная связь</small>
+                            </div>
+                        </div>
+                    ` : '<p class="text-muted">Нет данных</p>'}
+                </div>
+                <div class="col-md-6">
+                    <h6>Сильнейшая отрицательная корреляция:</h6>
+                    ${stats.strongest_negative ? `
+                        <div class="card bg-danger text-white mb-3">
+                            <div class="card-body">
+                                <h5>${stats.strongest_negative.var1} ↔ ${stats.strongest_negative.var2}</h5>
+                                <h3>${stats.strongest_negative.correlation.toFixed(3)}</h3>
+                                <small>Сильная отрицательная связь</small>
+                            </div>
+                        </div>
+                    ` : '<p class="text-muted">Нет данных</p>'}
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <h6>Средняя корреляция</h6>
+                            <h4>${stats.average_correlation ? stats.average_correlation.toFixed(3) : 'N/A'}</h4>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <h6>Всего пар переменных</h6>
+                            <h4>${stats.total_pairs}</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        container.innerHTML = statsHtml;
+    }
+
+    function generateConclusions(data) {
+        const container = document.getElementById('analysisConclusions');
+        const stats = data.correlation_stats;
+
+        // Анализ корреляций
+        let strongCorrelations = 0;
+        let moderateCorrelations = 0;
+        let weakCorrelations = 0;
+
+        // Подсчитываем силу корреляций из матрицы
+        const matrix = data.correlation_matrix;
+        Object.keys(matrix).forEach(key1 => {
+            Object.keys(matrix[key1]).forEach(key2 => {
+                if (key1 !== key2) {
+                    const corr = Math.abs(matrix[key1][key2]);
+                    if (!isNaN(corr)) {
+                        if (corr >= 0.7) strongCorrelations++;
+                        else if (corr >= 0.3) moderateCorrelations++;
+                        else weakCorrelations++;
+                    }
+                }
+            });
+        });
+
+        // Убираем дублирование (каждая пара считается дважды)
+        strongCorrelations = Math.floor(strongCorrelations / 2);
+        moderateCorrelations = Math.floor(moderateCorrelations / 2);
+        weakCorrelations = Math.floor(weakCorrelations / 2);
+
+        let correlationAnalysis = '';
+        if (strongCorrelations > 0) {
+            correlationAnalysis = `Найдено ${strongCorrelations} сильных корреляций, что указывает на значительные взаимосвязи между переменными.`;
+        } else if (moderateCorrelations > 0) {
+            correlationAnalysis = `Обнаружены в основном умеренные корреляции (${moderateCorrelations}), что свидетельствует о некоторых взаимосвязях.`;
+        } else {
+            correlationAnalysis = 'Корреляции между переменными преимущественно слабые, что указывает на их независимость.';
+        }
+
+        const conclusionHtml = `
+            <div class="row">
+                <div class="col-md-8">
+                    <h6>Общие выводы:</h6>
+                    <ul>
+                        <li><strong>Корреляционный анализ:</strong> ${correlationAnalysis}</li>
+                        <li><strong>Сильные корреляции:</strong> ${strongCorrelations} пар(а) переменных</li>
+                        <li><strong>Умеренные корреляции:</strong> ${moderateCorrelations} пар(а) переменных</li>
+                        <li><strong>Слабые корреляции:</strong> ${weakCorrelations} пар(а) переменных</li>
+                        ${stats.strongest_positive ?
+                            `<li><strong>Максимальная положительная связь:</strong> ${stats.strongest_positive.correlation.toFixed(3)} между ${stats.strongest_positive.var1} и ${stats.strongest_positive.var2}</li>` : ''}
+                        ${stats.strongest_negative ?
+                            `<li><strong>Максимальная отрицательная связь:</strong> ${stats.strongest_negative.correlation.toFixed(3)} между ${stats.strongest_negative.var1} и ${stats.strongest_negative.var2}</li>` : ''}
+                    </ul>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <h6 class="card-title">Практические выводы</h6>
+                            <ul class="list-unstyled small">
+                                ${strongCorrelations > 0 ?
+                                    '<li><i class="fas fa-exclamation text-warning me-2"></i>Обнаружена мультиколлинеарность</li>' :
+                                    '<li><i class="fas fa-check text-success me-2"></i>Переменные независимы</li>'
+                                }
+                                ${stats.average_correlation && Math.abs(stats.average_correlation) > 0.5 ?
+                                    '<li><i class="fas fa-info text-info me-2"></i>Переменные взаимозависимы</li>' :
+                                    '<li><i class="fas fa-check text-success me-2"></i>Низкая взаимозависимость</li>'
+                                }
+                                <li><i class="fas fa-lightbulb text-warning me-2"></i>Учитывайте корреляции при моделировании</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        container.innerHTML = conclusionHtml;
+    }
+
+    function showError(errorText) {
+        document.getElementById('errorText').textContent = errorText;
+        errorMessage.style.display = 'block';
+    }
+
+    // Инициализируем подсказки при загрузке страницы
+    updateFieldSuggestions('crypto');
+});
+</script>
+{% endblock %}

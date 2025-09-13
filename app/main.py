@@ -6,6 +6,7 @@ from .controllers.crypto_controller import create_crypto_router, create_analytic
 from .controllers.defi_controller import create_defi_router
 from .controllers.data_controller import create_data_router
 from .controllers.web_controller import create_web_router
+from .controllers.lab2_controller import create_lab2_router
 from .core.config import settings
 from .core.database import get_engine
 
@@ -41,6 +42,7 @@ app.include_router(create_crypto_router())  # Cryptocurrency API
 app.include_router(create_defi_router())  # DeFi API
 app.include_router(create_analytics_router())  # Analytics API
 app.include_router(create_data_router())  # Data management API
+app.include_router(create_lab2_router())  # Lab 2 Statistical Analysis
 
 
 @app.get("/health")

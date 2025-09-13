@@ -55,6 +55,19 @@ class DeFiProtocolRepository(BaseRepository[DeFiProtocol]):
                    .all())
         finally:
             db.close()
+
+    def search_by_name(self, name: str, limit: int = 10) -> List[DeFiProtocol]:
+        """Поиск протоколов по имени"""
+        db = self._get_db()
+        try:
+            search_term = f"%{name.lower()}%"
+            return (db.query(self.model_class)
+                   .filter(self.model_class.name.ilike(search_term))
+                   .order_by(desc(self.model_class.tvl))
+                   .limit(limit)
+                   .all())
+        finally:
+            db.close()
     
     def get_top_by_tvl(self, limit: int = 20) -> List[DeFiProtocol]:
         """Получение топ протоколов по TVL"""

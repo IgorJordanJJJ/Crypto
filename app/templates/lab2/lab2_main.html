@@ -1,0 +1,291 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Заголовок лабораторной работы -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-primary">
+                <div class="card-header bg-primary text-white">
+                    <h1 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>
+                        Лабораторная работа №2
+                    </h1>
+                    <p class="mb-0">Статистический анализ данных с проверкой нормальности и корреляционным анализом</p>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h5>Задачи лабораторной работы:</h5>
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item">
+                                    <i class="fas fa-chart-histogram text-info me-2"></i>
+                                    Проверка выбранных данных на нормальность с использованием графических методов
+                                </li>
+                                <li class="list-group-item">
+                                    <i class="fas fa-chart-line text-success me-2"></i>
+                                    Построение гистограммы распределения
+                                </li>
+                                <li class="list-group-item">
+                                    <i class="fas fa-chart-scatter text-warning me-2"></i>
+                                    Построение графика квантилей (Q-Q plot)
+                                </li>
+                                <li class="list-group-item">
+                                    <i class="fas fa-th text-danger me-2"></i>
+                                    Визуализация корреляционной матрицы с цветовым кодированием
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Методы анализа</h6>
+                                </div>
+                                <div class="card-body">
+                                    <p class="small mb-2"><strong>Статистические тесты:</strong></p>
+                                    <ul class="small mb-2">
+                                        <li>Тест Шапиро-Уилка</li>
+                                        <li>Тест Колмогорова-Смирнова</li>
+                                        <li>Тест Жарка-Бера</li>
+                                    </ul>
+                                    <p class="small mb-2"><strong>Визуализация:</strong></p>
+                                    <ul class="small mb-0">
+                                        <li>Интерактивные графики Plotly</li>
+                                        <li>Тепловые карты корреляций</li>
+                                        <li>Scatter plot матрицы</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Навигация по разделам -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Разделы анализа</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Проверка на нормальность -->
+                        <div class="col-lg-6 mb-3">
+                            <div class="card h-100 border-info">
+                                <div class="card-header bg-info text-white">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-chart-histogram me-2"></i>
+                                        Проверка на нормальность
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <p class="card-text">
+                                        Анализ распределения данных с использованием:
+                                    </p>
+                                    <ul class="mb-3">
+                                        <li>Гистограммы распределения</li>
+                                        <li>Q-Q графика (график квантилей)</li>
+                                        <li>Статистических тестов на нормальность</li>
+                                    </ul>
+                                    <p class="text-muted small">
+                                        Поддерживаются данные криптовалют (цены, объемы) и DeFi протоколов (TVL).
+                                    </p>
+                                    <div class="d-grid">
+                                        <a href="/lab2/normality" class="btn btn-info">
+                                            <i class="fas fa-arrow-right me-2"></i>
+                                            Перейти к анализу
+                                        </a>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-light">
+                                    <small class="text-muted">
+                                        <i class="fas fa-database me-1"></i>
+                                        Доступны данные: BTC, ETH, BNB и другие
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Корреляционный анализ -->
+                        <div class="col-lg-6 mb-3">
+                            <div class="card h-100 border-success">
+                                <div class="card-header bg-success text-white">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-th me-2"></i>
+                                        Корреляционный анализ
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <p class="card-text">
+                                        Визуализация взаимосвязей между переменными:
+                                    </p>
+                                    <ul class="mb-3">
+                                        <li>Корреляционная матрица с цветовым кодированием</li>
+                                        <li>Scatter plot для парных зависимостей</li>
+                                        <li>Статистическая значимость корреляций</li>
+                                    </ul>
+                                    <p class="text-muted small">
+                                        Анализ связей между ценами, объемами, капитализацией различных активов.
+                                    </p>
+                                    <div class="d-grid">
+                                        <a href="/lab2/correlation" class="btn btn-success">
+                                            <i class="fas fa-arrow-right me-2"></i>
+                                            Перейти к анализу
+                                        </a>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-light">
+                                    <small class="text-muted">
+                                        <i class="fas fa-project-diagram me-1"></i>
+                                        Многомерный анализ взаимосвязей
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Информация о данных -->
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Доступные данные для анализа
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-primary">Криптовалюты</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Параметр</th>
+                                            <th>Описание</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><code>price_usd</code></td>
+                                            <td>Цена в USD</td>
+                                        </tr>
+                                        <tr>
+                                            <td><code>volume_24h</code></td>
+                                            <td>Объем торгов за 24ч</td>
+                                        </tr>
+                                        <tr>
+                                            <td><code>market_cap</code></td>
+                                            <td>Рыночная капитализация</td>
+                                        </tr>
+                                        <tr>
+                                            <td><code>price_returns</code></td>
+                                            <td>Доходность (расчетная)</td>
+                                        </tr>
+                                        <tr>
+                                            <td><code>log_returns</code></td>
+                                            <td>Логарифмическая доходность</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-success">DeFi протоколы</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Параметр</th>
+                                            <th>Описание</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><code>tvl</code></td>
+                                            <td>Total Value Locked</td>
+                                        </tr>
+                                        <tr>
+                                            <td><code>tvl_change_24h</code></td>
+                                            <td>Изменение TVL за 24ч</td>
+                                        </tr>
+                                        <tr>
+                                            <td><code>tvl_returns</code></td>
+                                            <td>Доходность TVL (расчетная)</td>
+                                        </tr>
+                                        <tr>
+                                            <td><code>log_tvl</code></td>
+                                            <td>Логарифм TVL</td>
+                                        </tr>
+                                        <tr>
+                                            <td><code>tvl_volatility</code></td>
+                                            <td>Волатильность TVL</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card bg-light">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-lightbulb me-2"></i>
+                        Рекомендации по анализу
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <h6 class="alert-heading">Выбор параметров</h6>
+                        <ul class="mb-0 small">
+                            <li>Для анализа волатильности используйте <strong>price_returns</strong></li>
+                            <li>Для анализа роста - <strong>log_returns</strong></li>
+                            <li>Для объемного анализа - <strong>volume_24h</strong></li>
+                        </ul>
+                    </div>
+                    <div class="alert alert-success">
+                        <h6 class="alert-heading">Реальные данные</h6>
+                        <p class="mb-0 small">Система получает актуальные исторические данные напрямую с биржи Bybit через публичный API. Данные включают цены, объемы торгов и другие рыночные показатели с разными интервалами в зависимости от выбранного периода анализа.</p>
+                    </div>
+                    <div class="alert alert-warning">
+                        <h6 class="alert-heading">Интерпретация</h6>
+                        <ul class="mb-0 small">
+                            <li>p-value < 0.05 = отклонение от нормальности</li>
+                            <li>Корреляция > 0.7 = сильная связь</li>
+                            <li>Корреляция < 0.3 = слабая связь</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Дополнительная интерактивность
+document.addEventListener('DOMContentLoaded', function() {
+    // Анимация карточек при загрузке
+    const cards = document.querySelectorAll('.card');
+    cards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        setTimeout(() => {
+            card.style.transition = 'all 0.5s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+});
+</script>
+{% endblock %}

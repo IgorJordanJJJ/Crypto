@@ -1,0 +1,560 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Заголовок страницы -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="/lab2">Лабораторная работа №2</a></li>
+                    <li class="breadcrumb-item active">Проверка на нормальность</li>
+                </ol>
+            </nav>
+            <div class="d-flex justify-content-between align-items-center">
+                <h1>
+                    <i class="fas fa-chart-histogram text-primary me-2"></i>
+                    Проверка данных на нормальность
+                </h1>
+                <a href="/lab2" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Назад
+                </a>
+            </div>
+            <p class="text-muted">
+                Анализ распределения данных с использованием гистограммы распределения и Q-Q графика
+            </p>
+        </div>
+    </div>
+
+    <!-- Панель управления -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-sliders-h me-2"></i>
+                        Параметры анализа
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="normalityForm">
+                        <div class="row">
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <label for="dataType" class="form-label">Тип данных</label>
+                                    <select class="form-select" id="dataType" name="dataType">
+                                        <option value="crypto" selected>Криптовалюты</option>
+                                        <option value="defi">DeFi протоколы</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <label for="symbol" class="form-label">Символ/Протокол</label>
+                                    <select class="form-select" id="symbol" name="symbol">
+                                        <option value="BTC" selected>BTC</option>
+                                        <option value="ETH">ETH</option>
+                                        <option value="BNB">BNB</option>
+                                        <option value="ADA">ADA</option>
+                                        <option value="SOL">SOL</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="field" class="form-label">Анализируемое поле</label>
+                                    <select class="form-select" id="field" name="field">
+                                        <option value="price_returns" selected>Доходность (price_returns)</option>
+                                        <option value="log_returns">Логарифмическая доходность</option>
+                                        <option value="price_usd">Цена USD</option>
+                                        <option value="volume_24h">Объем 24ч</option>
+                                        <option value="market_cap">Капитализация</option>
+                                        <option value="volatility">Волатильность</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <label for="days" class="form-label">Период (дни)</label>
+                                    <select class="form-select" id="days" name="days">
+                                        <option value="7">7 дней</option>
+                                        <option value="14">14 дней</option>
+                                        <option value="30" selected>30 дней</option>
+                                        <option value="60">60 дней</option>
+                                        <option value="90">90 дней</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label class="form-label">&nbsp;</label>
+                                    <div class="d-grid">
+                                        <button type="submit" class="btn btn-primary" id="analyzeBtn">
+                                            <i class="fas fa-chart-line me-2"></i>
+                                            Провести анализ
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Индикатор загрузки -->
+    <div id="loadingIndicator" class="row mb-4" style="display: none;">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Загрузка...</span>
+                    </div>
+                    <p class="mt-3 mb-0">Выполняется статистический анализ данных...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Результаты анализа -->
+    <div id="analysisResults" style="display: none;">
+        <!-- Базовая статистика -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-calculator me-2"></i>
+                            Базовая статистика
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row" id="basicStats">
+                            <!-- Статистика будет загружена динамически -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Графики -->
+        <div class="row mb-4">
+            <!-- Гистограмма -->
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-bar me-2"></i>
+                            Гистограмма распределения
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="histogramPlot" style="height: 400px;"></div>
+                        <div class="alert alert-info mt-3">
+                            <h6 class="alert-heading">Интерпретация:</h6>
+                            <p class="mb-0 small">
+                                Синяя гистограмма показывает фактическое распределение данных.
+                                Красная линия - теоретическое нормальное распределение.
+                                Чем ближе гистограмма к красной линии, тем более нормально распределены данные.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Q-Q график -->
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-scatter me-2"></i>
+                            Q-Q график (График квантилей)
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="qqPlot" style="height: 400px;"></div>
+                        <div class="alert alert-info mt-3">
+                            <h6 class="alert-heading">Интерпретация:</h6>
+                            <p class="mb-0 small">
+                                Синие точки показывают квантили данных относительно нормального распределения.
+                                Красная пунктирная линия - идеальное соответствие нормальному распределению.
+                                Чем ближе точки к красной линии, тем больше данные похожи на нормальное распределение.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Статистические тесты -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-vials me-2"></i>
+                            Статистические тесты на нормальность
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row" id="normalityTests">
+                            <!-- Тесты будут загружены динамически -->
+                        </div>
+                        <div class="alert alert-warning mt-3">
+                            <h6 class="alert-heading">Понимание p-value:</h6>
+                            <ul class="mb-0 small">
+                                <li><strong>p-value > 0.05</strong>: Нет оснований отклонить гипотезу о нормальности (данные могут быть нормально распределены)</li>
+                                <li><strong>p-value ≤ 0.05</strong>: Отклоняем гипотезу о нормальности (данные НЕ нормально распределены)</li>
+                                <li><strong>Чем меньше p-value</strong>, тем сильнее отклонение от нормального распределения</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Выводы -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-lightbulb me-2"></i>
+                            Выводы анализа
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="analysisConclusions">
+                            <!-- Выводы будут сгенерированы автоматически -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Сообщения об ошибках -->
+    <div id="errorMessage" class="row" style="display: none;">
+        <div class="col-12">
+            <div class="alert alert-danger" role="alert">
+                <h4 class="alert-heading">Ошибка анализа</h4>
+                <p id="errorText"></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('normalityForm');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    const analysisResults = document.getElementById('analysisResults');
+    const errorMessage = document.getElementById('errorMessage');
+
+    // Обновление опций символов при изменении типа данных
+    document.getElementById('dataType').addEventListener('change', function() {
+        const dataType = this.value;
+        const symbolSelect = document.getElementById('symbol');
+        const fieldSelect = document.getElementById('field');
+
+        symbolSelect.innerHTML = '';
+        fieldSelect.innerHTML = '';
+
+        if (dataType === 'crypto') {
+            const cryptoSymbols = [
+                {value: 'BTC', text: 'Bitcoin (BTC)'},
+                {value: 'ETH', text: 'Ethereum (ETH)'},
+                {value: 'BNB', text: 'Binance Coin (BNB)'},
+                {value: 'ADA', text: 'Cardano (ADA)'},
+                {value: 'SOL', text: 'Solana (SOL)'},
+                {value: 'XRP', text: 'Ripple (XRP)'},
+                {value: 'DOT', text: 'Polkadot (DOT)'}
+            ];
+
+            const cryptoFields = [
+                {value: 'price_returns', text: 'Доходность (price_returns)'},
+                {value: 'log_returns', text: 'Логарифмическая доходность'},
+                {value: 'price_usd', text: 'Цена USD'},
+                {value: 'volume_24h', text: 'Объем 24ч'},
+                {value: 'market_cap', text: 'Капитализация'},
+                {value: 'volatility', text: 'Волатильность'}
+            ];
+
+            cryptoSymbols.forEach(symbol => {
+                const option = document.createElement('option');
+                option.value = symbol.value;
+                option.textContent = symbol.text;
+                symbolSelect.appendChild(option);
+            });
+
+            cryptoFields.forEach(field => {
+                const option = document.createElement('option');
+                option.value = field.value;
+                option.textContent = field.text;
+                fieldSelect.appendChild(option);
+            });
+        } else {
+            const defiProtocols = [
+                {value: 'Uniswap', text: 'Uniswap'},
+                {value: 'Aave', text: 'Aave'},
+                {value: 'Compound', text: 'Compound'},
+                {value: 'MakerDAO', text: 'MakerDAO'},
+                {value: 'Curve', text: 'Curve Finance'}
+            ];
+
+            const defiFields = [
+                {value: 'tvl_returns', text: 'Доходность TVL'},
+                {value: 'log_tvl', text: 'Логарифм TVL'},
+                {value: 'tvl', text: 'TVL (Total Value Locked)'},
+                {value: 'tvl_change_24h', text: 'Изменение TVL за 24ч'},
+                {value: 'tvl_volatility', text: 'Волатильность TVL'}
+            ];
+
+            defiProtocols.forEach(protocol => {
+                const option = document.createElement('option');
+                option.value = protocol.value;
+                option.textContent = protocol.text;
+                symbolSelect.appendChild(option);
+            });
+
+            defiFields.forEach(field => {
+                const option = document.createElement('option');
+                option.value = field.value;
+                option.textContent = field.text;
+                fieldSelect.appendChild(option);
+            });
+        }
+    });
+
+    // Обработка отправки формы
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        // Показываем индикатор загрузки
+        loadingIndicator.style.display = 'block';
+        analysisResults.style.display = 'none';
+        errorMessage.style.display = 'none';
+        analyzeBtn.disabled = true;
+
+        const formData = new FormData(form);
+        const params = new URLSearchParams();
+        params.append('data_type', formData.get('dataType'));
+        params.append('symbol', formData.get('symbol'));
+        params.append('field', formData.get('field'));
+        params.append('days', formData.get('days'));
+
+        try {
+            const response = await fetch(`/lab2/api/normality-test?${params}`);
+            const data = await response.json();
+
+            if (data.success) {
+                displayResults(data.data);
+            } else {
+                showError(data.error);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showError('Ошибка сети или сервера: ' + error.message);
+        } finally {
+            loadingIndicator.style.display = 'none';
+            analyzeBtn.disabled = false;
+        }
+    });
+
+    function displayResults(data) {
+        // Отображаем базовую статистику
+        displayBasicStats(data.basic_stats);
+
+        // Отображаем графики
+        const histogramData = JSON.parse(data.histogram);
+        const qqData = JSON.parse(data.qq_plot);
+
+        Plotly.newPlot('histogramPlot', histogramData.data, histogramData.layout, {responsive: true});
+        Plotly.newPlot('qqPlot', qqData.data, qqData.layout, {responsive: true});
+
+        // Отображаем статистические тесты
+        displayNormalityTests(data.normality_tests);
+
+        // Генерируем выводы
+        generateConclusions(data);
+
+        analysisResults.style.display = 'block';
+    }
+
+    function displayBasicStats(stats) {
+        const container = document.getElementById('basicStats');
+        container.innerHTML = `
+            <div class="col-md-2">
+                <div class="card bg-primary text-white">
+                    <div class="card-body text-center">
+                        <h6 class="card-title">Среднее</h6>
+                        <h4>${stats.mean.toFixed(4)}</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-info text-white">
+                    <div class="card-body text-center">
+                        <h6 class="card-title">Медиана</h6>
+                        <h4>${stats.median.toFixed(4)}</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-success text-white">
+                    <div class="card-body text-center">
+                        <h6 class="card-title">Ст. отклонение</h6>
+                        <h4>${stats.std.toFixed(4)}</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-warning text-white">
+                    <div class="card-body text-center">
+                        <h6 class="card-title">Асимметрия</h6>
+                        <h4>${stats.skewness.toFixed(4)}</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-danger text-white">
+                    <div class="card-body text-center">
+                        <h6 class="card-title">Эксцесс</h6>
+                        <h4>${stats.kurtosis.toFixed(4)}</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-secondary text-white">
+                    <div class="card-body text-center">
+                        <h6 class="card-title">Наблюдений</h6>
+                        <h4>${stats.count}</h4>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function displayNormalityTests(tests) {
+        const container = document.getElementById('normalityTests');
+
+        const testsHtml = Object.entries(tests).map(([testName, result]) => {
+            const testTitle = {
+                'shapiro': 'Тест Шапиро-Уилка',
+                'kolmogorov_smirnov': 'Тест Колмогорова-Смирнова',
+                'jarque_bera': 'Тест Жарка-Бера'
+            }[testName] || testName;
+
+            const isNormal = result.p_value > 0.05;
+            const cardClass = isNormal ? 'border-success' : 'border-danger';
+            const iconClass = isNormal ? 'fas fa-check-circle text-success' : 'fas fa-times-circle text-danger';
+
+            return `
+                <div class="col-lg-4 mb-3">
+                    <div class="card ${cardClass}">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="${iconClass} me-2"></i>
+                                ${testTitle}
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="mb-2">
+                                <strong>Статистика:</strong> ${result.statistic.toFixed(4)}<br>
+                                <strong>p-value:</strong> ${result.p_value.toFixed(6)}
+                            </p>
+                            <div class="alert ${isNormal ? 'alert-success' : 'alert-danger'} mb-0">
+                                <small>${result.interpretation}</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        container.innerHTML = testsHtml;
+    }
+
+    function generateConclusions(data) {
+        const container = document.getElementById('analysisConclusions');
+        const stats = data.basic_stats;
+        const tests = data.normality_tests;
+
+        // Подсчитываем количество тестов, указывающих на нормальность
+        const normalTests = Object.values(tests).filter(test => test.p_value > 0.05).length;
+        const totalTests = Object.keys(tests).length;
+
+        let normalityConclusion = '';
+        if (normalTests === totalTests) {
+            normalityConclusion = 'Все статистические тесты указывают на нормальное распределение данных.';
+        } else if (normalTests > totalTests / 2) {
+            normalityConclusion = 'Большинство тестов указывают на нормальное распределение, но есть некоторые отклонения.';
+        } else {
+            normalityConclusion = 'Данные значительно отклоняются от нормального распределения.';
+        }
+
+        // Анализ асимметрии и эксцесса
+        let shapeAnalysis = '';
+        if (Math.abs(stats.skewness) < 0.5) {
+            shapeAnalysis += 'Распределение практически симметрично. ';
+        } else if (stats.skewness > 0.5) {
+            shapeAnalysis += 'Распределение имеет правостороннюю асимметрию (длинный правый хвост). ';
+        } else {
+            shapeAnalysis += 'Распределение имеет левостороннюю асимметрию (длинный левый хвост). ';
+        }
+
+        if (Math.abs(stats.kurtosis) < 0.5) {
+            shapeAnalysis += 'Островершинность близка к нормальной.';
+        } else if (stats.kurtosis > 0.5) {
+            shapeAnalysis += 'Распределение более островершинное, чем нормальное (тяжелые хвосты).';
+        } else {
+            shapeAnalysis += 'Распределение менее островершинное, чем нормальное (легкие хвосты).';
+        }
+
+        const conclusionHtml = `
+            <div class="row">
+                <div class="col-md-8">
+                    <h6>Общие выводы:</h6>
+                    <ul>
+                        <li><strong>Нормальность:</strong> ${normalityConclusion}</li>
+                        <li><strong>Форма распределения:</strong> ${shapeAnalysis}</li>
+                        <li><strong>Количество наблюдений:</strong> ${stats.count} (${stats.count >= 30 ? 'достаточно для статистических тестов' : 'мало для надежных выводов'})</li>
+                        <li><strong>Разброс данных:</strong> Стандартное отклонение составляет ${stats.std.toFixed(4)}</li>
+                    </ul>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <h6 class="card-title">Рекомендации</h6>
+                            <ul class="list-unstyled small">
+                                ${normalTests === totalTests ?
+                                    '<li><i class="fas fa-check text-success me-2"></i>Можно использовать параметрические методы</li>' :
+                                    '<li><i class="fas fa-exclamation text-warning me-2"></i>Рассмотрите непараметрические методы</li>'
+                                }
+                                ${Math.abs(stats.skewness) > 1 ?
+                                    '<li><i class="fas fa-info text-info me-2"></i>Возможно, стоит применить трансформацию данных</li>' :
+                                    '<li><i class="fas fa-check text-success me-2"></i>Форма распределения приемлема</li>'
+                                }
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        container.innerHTML = conclusionHtml;
+    }
+
+    function showError(errorText) {
+        document.getElementById('errorText').textContent = errorText;
+        errorMessage.style.display = 'block';
+    }
+
+    // Инициализируем опции при загрузке страницы
+    document.getElementById('dataType').dispatchEvent(new Event('change'));
+});
+</script>
+{% endblock %}

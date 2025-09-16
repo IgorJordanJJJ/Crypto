@@ -17,6 +17,7 @@ from ..repositories.price_history_repository import PriceHistoryRepository
 from ..repositories.market_data_repository import MarketDataRepository
 from ..repositories.defi_repository import DeFiProtocolRepository
 from ..repositories.tvl_history_repository import TVLHistoryRepository
+from ..services.lab2_data_service import Lab2DataService
 
 logger = logging.getLogger(__name__)
 templates = Jinja2Templates(directory="app/templates")
@@ -423,7 +424,10 @@ class Lab2Controller:
                 xaxis_title=field,
                 yaxis_title='Плотность вероятности',
                 showlegend=True,
-                template='plotly_white'
+                template='plotly_white',
+                margin=dict(l=50, r=20, t=50, b=50),
+                autosize=True,
+                height=400
             )
 
             # Q-Q plot (график квантилей)
@@ -458,7 +462,10 @@ class Lab2Controller:
                 xaxis_title='Теоретические квантили (нормальное распределение)',
                 yaxis_title='Выборочные квантили',
                 showlegend=True,
-                template='plotly_white'
+                template='plotly_white',
+                margin=dict(l=50, r=20, t=50, b=50),
+                autosize=True,
+                height=400
             )
 
             # Базовая статистика
@@ -580,7 +587,11 @@ class Lab2Controller:
 
             fig_heatmap.update_layout(
                 title="Корреляционная матрица данных",
-                template='plotly_white'
+                template='plotly_white',
+                margin=dict(l=100, r=50, t=50, b=100),
+                autosize=True,
+                height=550,
+                font=dict(size=12)
             )
 
             # Создаем scatter plot matrix для парных корреляций
@@ -619,7 +630,17 @@ class Lab2Controller:
                             clean_data,
                             x=var1,
                             y=var2,
-                            title=f"Корреляция: {var1} vs {var2} (r={pair['correlation']:.3f})"
+                            title=f"Корреляция: {var1} vs {var2} (r={pair['correlation']:.3f})",
+                            template='plotly_white'
+                        )
+
+                        # Улучшаем настройки layout
+                        fig_scatter_single.update_layout(
+                            margin=dict(l=40, r=20, t=40, b=40),
+                            autosize=True,
+                            height=300,
+                            font=dict(size=11),
+                            showlegend=False
                         )
                         scatter_plots.append({
                             'plot': fig_scatter_single.to_json(),

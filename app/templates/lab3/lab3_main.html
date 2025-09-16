@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Заголовок -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1>
+                    <i class="fas fa-chart-line text-warning me-2"></i>
+                    Лабораторная работа №3
+                </h1>
+                <a href="/" class="btn btn-outline-secondary">
+                    <i class="fas fa-home me-2"></i>Главная
+                </a>
+            </div>
+            <p class="text-muted lead">
+                Полиномиальная аппроксимация и прогнозирование временных рядов
+            </p>
+        </div>
+    </div>
+
+    <!-- Описание работы -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Цель работы
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-3">
+                        <strong>Обрести навыки визуализации данных с применением статистических методов.</strong>
+                    </p>
+
+                    <h6>Задачи:</h6>
+                    <ul class="mb-0">
+                        <li>Использовать результаты выполнения лабораторной работы №1 (данные из БД)</li>
+                        <li>Аппроксимировать выбранные данные полиномами: 1-го, 2-го, 3-го, 4-го и 5-го порядков</li>
+                        <li>Создать графики с легендой и подписанными осями</li>
+                        <li>Сделать краткосрочный прогноз по полученным моделям</li>
+                        <li>Реализовать графический интерфейс приложения</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Разделы работы -->
+    <div class="row">
+        <!-- Полиномиальная аппроксимация -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100 border-primary shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-function me-2"></i>
+                        Полиномиальная аппроксимация
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">
+                        Аппроксимация данных полиномами различных степеней (1-5 порядок)
+                        с оценкой качества моделей и визуализацией результатов.
+                    </p>
+
+                    <h6>Возможности:</h6>
+                    <ul class="small">
+                        <li>Выбор данных из БД (криптовалюты, DeFi протоколы)</li>
+                        <li>Полиномы от 1-й до 5-й степени</li>
+                        <li>Метрики качества (R², MSE, RMSE)</li>
+                        <li>Уравнения полиномов</li>
+                        <li>Краткосрочное прогнозирование</li>
+                    </ul>
+
+                    <div class="mt-auto">
+                        <a href="/lab3/polynomial" class="btn btn-primary">
+                            <i class="fas fa-chart-line me-2"></i>
+                            Перейти к аппроксимации
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Прогнозирование временных рядов -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100 border-success shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-crystal-ball me-2"></i>
+                        Прогнозирование временных рядов
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">
+                        Продвинутые методы прогнозирования с использованием различных
+                        математических моделей и статистических подходов.
+                    </p>
+
+                    <h6>Методы прогнозирования:</h6>
+                    <ul class="small">
+                        <li>Линейная экстраполяция</li>
+                        <li>Полиномиальные модели</li>
+                        <li>Экспоненциальные модели</li>
+                        <li>Скользящее среднее</li>
+                        <li>Доверительные интервалы</li>
+                    </ul>
+
+                    <div class="mt-auto">
+                        <a href="/lab3/forecast" class="btn btn-success">
+                            <i class="fas fa-chart-area me-2"></i>
+                            Перейти к прогнозированию
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Технические особенности -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-cogs me-2"></i>
+                        Технические особенности реализации
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <h6><i class="fas fa-database me-2 text-primary"></i>Источники данных</h6>
+                            <ul class="small text-muted">
+                                <li>База данных Lab1 (PostgreSQL)</li>
+                                <li>Bybit API (криптовалюты)</li>
+                                <li>DeFi протоколы (TVL данные)</li>
+                                <li>Синтетические данные для демонстрации</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-4">
+                            <h6><i class="fas fa-chart-bar me-2 text-success"></i>Библиотеки и инструменты</h6>
+                            <ul class="small text-muted">
+                                <li>Plotly.js - интерактивная визуализация</li>
+                                <li>scikit-learn - машинное обучение</li>
+                                <li>NumPy, Pandas - обработка данных</li>
+                                <li>Bootstrap 5 - адаптивный UI</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-4">
+                            <h6><i class="fas fa-mobile-alt me-2 text-warning"></i>Интерфейс</h6>
+                            <ul class="small text-muted">
+                                <li>Адаптивный дизайн</li>
+                                <li>Интерактивные графики</li>
+                                <li>Настраиваемые параметры</li>
+                                <li>Экспорт результатов</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Связь с предыдущими работами -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card bg-light">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-link me-2"></i>
+                        Связь с предыдущими лабораторными работами
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-database me-2 text-primary"></i>Лабораторная работа №1</h6>
+                            <p class="small text-muted mb-2">
+                                Используем данные, сохраненные в реляционной базе данных:
+                            </p>
+                            <ul class="small text-muted">
+                                <li>Исторические цены криптовалют</li>
+                                <li>Объемы торгов</li>
+                                <li>TVL DeFi протоколов</li>
+                                <li>Рыночная капитализация</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-chart-histogram me-2 text-success"></i>Лабораторная работа №2</h6>
+                            <p class="small text-muted mb-2">
+                                Развиваем статистические методы анализа:
+                            </p>
+                            <ul class="small text-muted">
+                                <li>От анализа распределений к прогнозированию</li>
+                                <li>Расширение набора статистических тестов</li>
+                                <li>Визуализация временных зависимостей</li>
+                                <li>Оценка качества моделей</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card {
+    transition: transform 0.2s ease-in-out;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
+
+.border-warning {
+    border-width: 2px !important;
+}
+
+.border-primary {
+    border-width: 2px !important;
+}
+
+.border-success {
+    border-width: 2px !important;
+}
+
+.shadow-sm {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075) !important;
+}
+
+.lead {
+    font-size: 1.1rem;
+    font-weight: 400;
+}
+</style>
+{% endblock %}

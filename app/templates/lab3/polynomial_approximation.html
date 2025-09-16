@@ -1,0 +1,589 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Заголовок страницы -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="/lab3">Лабораторная работа №3</a></li>
+                    <li class="breadcrumb-item active">Полиномиальная аппроксимация</li>
+                </ol>
+            </nav>
+            <div class="d-flex justify-content-between align-items-center">
+                <h1>
+                    <i class="fas fa-function text-primary me-2"></i>
+                    Полиномиальная аппроксимация данных
+                </h1>
+                <a href="/lab3" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Назад
+                </a>
+            </div>
+            <p class="text-muted">
+                Аппроксимация исторических данных полиномами различных степеней с прогнозированием
+            </p>
+        </div>
+    </div>
+
+    <!-- Панель управления -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-sliders-h me-2"></i>
+                        Параметры аппроксимации
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="approximationForm">
+                        <div class="row">
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <label for="dataType" class="form-label">Тип данных</label>
+                                    <select class="form-select" id="dataType" name="dataType">
+                                        <option value="crypto" selected>Криптовалюты</option>
+                                        <option value="defi">DeFi протоколы</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <label for="symbol" class="form-label">Символ/Протокол</label>
+                                    <select class="form-select" id="symbol" name="symbol">
+                                        <option value="BTC" selected>Bitcoin (BTC)</option>
+                                        <option value="ETH">Ethereum (ETH)</option>
+                                        <option value="BNB">Binance Coin (BNB)</option>
+                                        <option value="ADA">Cardano (ADA)</option>
+                                        <option value="SOL">Solana (SOL)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <label for="field" class="form-label">Поле данных</label>
+                                    <select class="form-select" id="field" name="field">
+                                        <option value="price" selected>Цена</option>
+                                        <option value="volume">Объем</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <label for="days" class="form-label">Период (дни)</label>
+                                    <select class="form-select" id="days" name="days">
+                                        <option value="15">15 дней</option>
+                                        <option value="30" selected>30 дней</option>
+                                        <option value="60">60 дней</option>
+                                        <option value="90">90 дней</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <label for="maxDegree" class="form-label">Макс. степень</label>
+                                    <select class="form-select" id="maxDegree" name="maxDegree">
+                                        <option value="3">3 степень</option>
+                                        <option value="5" selected>5 степень</option>
+                                        <option value="7">7 степень</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <label for="forecastDays" class="form-label">Прогноз (дни)</label>
+                                    <select class="form-select" id="forecastDays" name="forecastDays">
+                                        <option value="3">3 дня</option>
+                                        <option value="7" selected>7 дней</option>
+                                        <option value="14">14 дней</option>
+                                        <option value="30">30 дней</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary btn-lg" id="analyzeBtn">
+                                    <i class="fas fa-calculator me-2"></i>
+                                    Выполнить аппроксимацию
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Индикатор загрузки -->
+    <div id="loadingIndicator" class="row mb-4" style="display: none;">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center">
+                    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Загрузка...</span>
+                    </div>
+                    <p class="mt-3 mb-0">Выполняется полиномиальная аппроксимация...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Результаты анализа -->
+    <div id="analysisResults" style="display: none;">
+        <!-- График аппроксимации -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-line me-2"></i>
+                            График полиномиальной аппроксимации и прогноза
+                        </h5>
+                    </div>
+                    <div class="card-body p-3">
+                        <div id="approximationPlot" style="height: 600px; width: 100%; overflow: hidden;"></div>
+                        <div class="alert alert-info mt-3 mb-0">
+                            <h6 class="alert-heading"><i class="fas fa-info-circle me-2"></i>Интерпретация графика:</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p class="mb-0 small">
+                                        <span class="badge bg-dark me-2">Черные точки</span> - исходные данные<br>
+                                        <span class="badge bg-primary me-2">Сплошные линии</span> - полиномиальная аппроксимация<br>
+                                        <span class="badge bg-warning me-2">Пунктирные линии</span> - прогноз на будущее
+                                    </p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p class="mb-0 small">
+                                        <span class="badge bg-secondary me-2">Вертикальная линия</span> - граница прогноза<br>
+                                        Разные цвета соответствуют разным степеням полиномов (1-5)
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Метрики качества -->
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-bar me-2"></i>
+                            Метрики качества аппроксимации
+                        </h5>
+                    </div>
+                    <div class="card-body p-3">
+                        <div id="metricsPlot" style="height: 400px; width: 100%; overflow: hidden;"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-table me-2"></i>
+                            Таблица метрик
+                        </h5>
+                    </div>
+                    <div class="card-body p-3">
+                        <div id="metricsTable">
+                            <!-- Таблица будет заполнена динамически -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Уравнения полиномов -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-function me-2"></i>
+                            Уравнения полиномов
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="polynomialEquations" class="row">
+                            <!-- Уравнения будут добавлены динамически -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Выводы и рекомендации -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-dark text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-lightbulb me-2"></i>
+                            Выводы и рекомендации
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="analysisConclusions">
+                            <!-- Выводы будут сгенерированы автоматически -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Сообщения об ошибках -->
+    <div id="errorMessage" class="row" style="display: none;">
+        <div class="col-12">
+            <div class="alert alert-danger" role="alert">
+                <h4 class="alert-heading">Ошибка анализа</h4>
+                <p id="errorText"></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('approximationForm');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    const analysisResults = document.getElementById('analysisResults');
+    const errorMessage = document.getElementById('errorMessage');
+
+    // Обновление опций при изменении типа данных
+    document.getElementById('dataType').addEventListener('change', function() {
+        const dataType = this.value;
+        updateSymbolOptions(dataType);
+        updateFieldOptions(dataType);
+    });
+
+    function updateSymbolOptions(dataType) {
+        const symbolSelect = document.getElementById('symbol');
+        symbolSelect.innerHTML = '';
+
+        const options = dataType === 'crypto' ? [
+            {value: 'BTC', text: 'Bitcoin (BTC)'},
+            {value: 'ETH', text: 'Ethereum (ETH)'},
+            {value: 'BNB', text: 'Binance Coin (BNB)'},
+            {value: 'ADA', text: 'Cardano (ADA)'},
+            {value: 'SOL', text: 'Solana (SOL)'},
+            {value: 'XRP', text: 'Ripple (XRP)'},
+            {value: 'DOT', text: 'Polkadot (DOT)'}
+        ] : [
+            {value: 'Uniswap', text: 'Uniswap'},
+            {value: 'Aave', text: 'Aave'},
+            {value: 'Compound', text: 'Compound'},
+            {value: 'MakerDAO', text: 'MakerDAO'},
+            {value: 'Curve', text: 'Curve Finance'}
+        ];
+
+        options.forEach(option => {
+            const opt = document.createElement('option');
+            opt.value = option.value;
+            opt.textContent = option.text;
+            symbolSelect.appendChild(opt);
+        });
+    }
+
+    function updateFieldOptions(dataType) {
+        const fieldSelect = document.getElementById('field');
+        fieldSelect.innerHTML = '';
+
+        const options = dataType === 'crypto' ? [
+            {value: 'price', text: 'Цена'},
+            {value: 'volume', text: 'Объем торгов'}
+        ] : [
+            {value: 'price', text: 'TVL (как цена)'},
+            {value: 'tvl', text: 'TVL'}
+        ];
+
+        options.forEach(option => {
+            const opt = document.createElement('option');
+            opt.value = option.value;
+            opt.textContent = option.text;
+            fieldSelect.appendChild(opt);
+        });
+    }
+
+    // Обработка отправки формы
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        // Показываем индикатор загрузки
+        loadingIndicator.style.display = 'block';
+        analysisResults.style.display = 'none';
+        errorMessage.style.display = 'none';
+        analyzeBtn.disabled = true;
+
+        const formData = new FormData(form);
+        const params = new URLSearchParams();
+        params.append('data_type', formData.get('dataType'));
+        params.append('symbol', formData.get('symbol'));
+        params.append('field', formData.get('field'));
+        params.append('days', formData.get('days'));
+        params.append('max_degree', formData.get('maxDegree'));
+        params.append('forecast_days', formData.get('forecastDays'));
+
+        try {
+            const response = await fetch(`/lab3/api/polynomial-approximation?${params}`);
+            const data = await response.json();
+
+            if (data.success) {
+                displayResults(data.data);
+            } else {
+                showError(data.error);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showError('Ошибка сети или сервера: ' + error.message);
+        } finally {
+            loadingIndicator.style.display = 'none';
+            analyzeBtn.disabled = false;
+        }
+    });
+
+    function displayResults(data) {
+        // Отображаем главный график
+        const plotData = JSON.parse(data.plot);
+
+        const plotConfig = {
+            responsive: true,
+            displayModeBar: true,
+            displaylogo: false,
+            modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d']
+        };
+
+        plotData.layout.margin = {l: 60, r: 30, t: 60, b: 60};
+        plotData.layout.autosize = true;
+
+        Plotly.newPlot('approximationPlot', plotData.data, plotData.layout, plotConfig);
+
+        // Отображаем график метрик
+        const metricsData = JSON.parse(data.metrics_plot);
+        metricsData.layout.margin = {l: 60, r: 60, t: 50, b: 50};
+        metricsData.layout.autosize = true;
+
+        Plotly.newPlot('metricsPlot', metricsData.data, metricsData.layout, plotConfig);
+
+        // Отображаем таблицу метрик
+        displayMetricsTable(data.metrics);
+
+        // Отображаем уравнения полиномов
+        displayPolynomialEquations(data.metrics);
+
+        // Генерируем выводы
+        generateConclusions(data);
+
+        analysisResults.style.display = 'block';
+    }
+
+    function displayMetricsTable(metrics) {
+        const container = document.getElementById('metricsTable');
+
+        let tableHtml = `
+            <div class="table-responsive">
+                <table class="table table-sm table-striped">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Степень</th>
+                            <th>R²</th>
+                            <th>RMSE</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        Object.keys(metrics).forEach(key => {
+            const degree = key.split('_')[1];
+            const metric = metrics[key];
+            const r2Color = metric.r2 > 0.8 ? 'text-success' : metric.r2 > 0.6 ? 'text-warning' : 'text-danger';
+
+            tableHtml += `
+                <tr>
+                    <td><strong>${degree}</strong></td>
+                    <td class="${r2Color}">${metric.r2.toFixed(4)}</td>
+                    <td>${metric.rmse.toFixed(4)}</td>
+                </tr>
+            `;
+        });
+
+        tableHtml += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+
+        container.innerHTML = tableHtml;
+    }
+
+    function displayPolynomialEquations(metrics) {
+        const container = document.getElementById('polynomialEquations');
+
+        let equationsHtml = '';
+
+        Object.keys(metrics).forEach(key => {
+            const degree = key.split('_')[1];
+            const metric = metrics[key];
+
+            equationsHtml += `
+                <div class="col-md-6 mb-3">
+                    <div class="card border-primary">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0">Полином ${degree} степени</h6>
+                        </div>
+                        <div class="card-body">
+                            <code class="small">${metric.equation}</code>
+                            <div class="mt-2">
+                                <small class="text-muted">
+                                    R² = ${metric.r2.toFixed(4)} |
+                                    RMSE = ${metric.rmse.toFixed(4)}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = equationsHtml;
+    }
+
+    function generateConclusions(data) {
+        const container = document.getElementById('analysisConclusions');
+        const metrics = data.metrics;
+
+        // Находим лучшую модель по R²
+        let bestR2 = {key: '', value: -1};
+        let bestRMSE = {key: '', value: Infinity};
+
+        Object.keys(metrics).forEach(key => {
+            if (metrics[key].r2 > bestR2.value) {
+                bestR2 = {key: key, value: metrics[key].r2};
+            }
+            if (metrics[key].rmse < bestRMSE.value) {
+                bestRMSE = {key: key, value: metrics[key].rmse};
+            }
+        });
+
+        const bestR2Degree = bestR2.key.split('_')[1];
+        const bestRMSEDegree = bestRMSE.key.split('_')[1];
+
+        let overfittingWarning = '';
+        if (parseInt(bestR2Degree) > 3) {
+            overfittingWarning = `
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Внимание:</strong> Полином высокой степени (${bestR2Degree}) может страдать от переобучения.
+                    Рекомендуется использовать полиномы 2-3 степени для прогнозирования.
+                </div>
+            `;
+        }
+
+        const conclusionHtml = `
+            <div class="row">
+                <div class="col-md-8">
+                    <h6>Основные выводы:</h6>
+                    <ul>
+                        <li><strong>Лучшая модель по R²:</strong> Полином ${bestR2Degree} степени (R² = ${bestR2.value.toFixed(4)})</li>
+                        <li><strong>Лучшая модель по RMSE:</strong> Полином ${bestRMSEDegree} степени (RMSE = ${bestRMSE.value.toFixed(4)})</li>
+                        <li><strong>Качество аппроксимации:</strong> ${bestR2.value > 0.8 ? 'Высокое' : bestR2.value > 0.6 ? 'Среднее' : 'Низкое'}</li>
+                        <li><strong>Прогноз:</strong> Создан на ${data.forecast_days} дней вперед</li>
+                    </ul>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <h6 class="card-title">Рекомендации</h6>
+                            <ul class="list-unstyled small">
+                                ${bestR2.value > 0.7 ?
+                                    '<li><i class="fas fa-check text-success me-2"></i>Модель хорошо описывает данные</li>' :
+                                    '<li><i class="fas fa-exclamation text-warning me-2"></i>Рассмотрите другие методы</li>'
+                                }
+                                ${parseInt(bestR2Degree) <= 3 ?
+                                    '<li><i class="fas fa-check text-success me-2"></i>Низкий риск переобучения</li>' :
+                                    '<li><i class="fas fa-exclamation text-warning me-2"></i>Риск переобучения</li>'
+                                }
+                                <li><i class="fas fa-info text-info me-2"></i>Используйте для краткосрочного прогноза</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            ${overfittingWarning}
+        `;
+
+        container.innerHTML = conclusionHtml;
+    }
+
+    function showError(errorText) {
+        document.getElementById('errorText').textContent = errorText;
+        errorMessage.style.display = 'block';
+    }
+
+    // Инициализируем опции при загрузке страницы
+    updateSymbolOptions('crypto');
+    updateFieldOptions('crypto');
+
+    // Обработчик изменения размера окна
+    window.addEventListener('resize', function() {
+        setTimeout(function() {
+            const plotlyGraphs = document.querySelectorAll('.js-plotly-plot');
+            plotlyGraphs.forEach(function(graph) {
+                if (graph.id) {
+                    Plotly.Plots.resize(graph.id);
+                }
+            });
+        }, 300);
+    });
+});
+</script>
+
+<style>
+/* Адаптивные стили */
+@media (max-width: 768px) {
+    #approximationPlot, #metricsPlot {
+        height: 400px !important;
+    }
+
+    .card-body {
+        padding: 1rem !important;
+    }
+}
+
+@media (max-width: 576px) {
+    #approximationPlot, #metricsPlot {
+        height: 350px !important;
+    }
+
+    .container-fluid {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+}
+
+.card {
+    border: none;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.shadow-sm {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075) !important;
+}
+
+code {
+    background: #f8f9fa;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    border: 1px solid #dee2e6;
+}
+</style>
+{% endblock %}

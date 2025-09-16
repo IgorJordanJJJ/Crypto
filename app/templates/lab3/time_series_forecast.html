@@ -1,0 +1,695 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Заголовок страницы -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="/lab3">Лабораторная работа №3</a></li>
+                    <li class="breadcrumb-item active">Прогнозирование временных рядов</li>
+                </ol>
+            </nav>
+            <div class="d-flex justify-content-between align-items-center">
+                <h1>
+                    <i class="fas fa-crystal-ball text-success me-2"></i>
+                    Прогнозирование временных рядов
+                </h1>
+                <a href="/lab3" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Назад
+                </a>
+            </div>
+            <p class="text-muted">
+                Продвинутые методы прогнозирования с доверительными интервалами
+            </p>
+        </div>
+    </div>
+
+    <!-- Панель управления -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-sliders-h me-2"></i>
+                        Параметры прогнозирования
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="forecastForm">
+                        <div class="row">
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <label for="dataType" class="form-label">Тип данных</label>
+                                    <select class="form-select" id="dataType" name="dataType">
+                                        <option value="crypto" selected>Криптовалюты</option>
+                                        <option value="defi">DeFi протоколы</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <label for="symbol" class="form-label">Символ/Протокол</label>
+                                    <select class="form-select" id="symbol" name="symbol">
+                                        <option value="BTC" selected>Bitcoin (BTC)</option>
+                                        <option value="ETH">Ethereum (ETH)</option>
+                                        <option value="BNB">Binance Coin (BNB)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <label for="field" class="form-label">Поле данных</label>
+                                    <select class="form-select" id="field" name="field">
+                                        <option value="price" selected>Цена</option>
+                                        <option value="volume">Объем</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <label for="days" class="form-label">Период (дни)</label>
+                                    <select class="form-select" id="days" name="days">
+                                        <option value="30">30 дней</option>
+                                        <option value="60" selected>60 дней</option>
+                                        <option value="90">90 дней</option>
+                                        <option value="120">120 дней</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <label for="forecastMethod" class="form-label">Метод прогноза</label>
+                                    <select class="form-select" id="forecastMethod" name="forecastMethod">
+                                        <option value="all" selected>Все методы</option>
+                                        <option value="linear">Линейный</option>
+                                        <option value="polynomial">Полиномиальный</option>
+                                        <option value="exponential">Экспоненциальный</option>
+                                        <option value="moving_average">Скользящее среднее</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <label for="forecastDays" class="form-label">Прогноз (дни)</label>
+                                    <select class="form-select" id="forecastDays" name="forecastDays">
+                                        <option value="7">7 дней</option>
+                                        <option value="14" selected>14 дней</option>
+                                        <option value="30">30 дней</option>
+                                        <option value="60">60 дней</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-success btn-lg" id="forecastBtn">
+                                    <i class="fas fa-chart-area me-2"></i>
+                                    Создать прогноз
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Индикатор загрузки -->
+    <div id="loadingIndicator" class="row mb-4" style="display: none;">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center">
+                    <div class="spinner-border text-success" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Загрузка...</span>
+                    </div>
+                    <p class="mt-3 mb-0">Создается прогноз временного ряда...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Результаты прогнозирования -->
+    <div id="forecastResults" style="display: none;">
+        <!-- График прогноза -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-area me-2"></i>
+                            График прогнозирования временного ряда
+                        </h5>
+                    </div>
+                    <div class="card-body p-3">
+                        <div id="forecastPlot" style="height: 600px; width: 100%; overflow: hidden;"></div>
+                        <div class="alert alert-info mt-3 mb-0">
+                            <h6 class="alert-heading"><i class="fas fa-info-circle me-2"></i>Интерпретация прогноза:</h6>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <p class="mb-0 small">
+                                        <span class="badge bg-primary me-2">Синяя линия</span> - исторические данные<br>
+                                        <span class="badge bg-success me-2">Зеленая линия</span> - линейный прогноз
+                                    </p>
+                                </div>
+                                <div class="col-md-4">
+                                    <p class="mb-0 small">
+                                        <span class="badge bg-danger me-2">Красная линия</span> - полиномиальный прогноз<br>
+                                        <span class="badge bg-warning me-2">Оранжевая линия</span> - экспоненциальный
+                                    </p>
+                                </div>
+                                <div class="col-md-4">
+                                    <p class="mb-0 small">
+                                        <span class="badge bg-info me-2">Фиолетовая линия</span> - скользящее среднее<br>
+                                        <span class="badge bg-secondary me-2">Серая линия</span> - граница прогноза
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Сравнение методов -->
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0">
+                            <i class="fas fa-balance-scale me-2"></i>
+                            Сравнение методов прогнозирования
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="methodComparison">
+                            <!-- Сравнение будет заполнено динамически -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-trophy me-2"></i>
+                            Рейтинг методов
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="methodRanking">
+                            <!-- Рейтинг будет заполнен динамически -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Детальные метрики -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-table me-2"></i>
+                            Детальные метрики качества прогнозов
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <div id="detailedMetrics">
+                                <!-- Таблица метрик -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Доверительные интервалы -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-dark text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-line me-2"></i>
+                            Доверительные интервалы
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="confidenceIntervals">
+                            <!-- Информация о доверительных интервалах -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-lightbulb me-2"></i>
+                            Рекомендации по использованию
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="usageRecommendations">
+                            <!-- Рекомендации -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Сообщения об ошибках -->
+    <div id="errorMessage" class="row" style="display: none;">
+        <div class="col-12">
+            <div class="alert alert-danger" role="alert">
+                <h4 class="alert-heading">Ошибка прогнозирования</h4>
+                <p id="errorText"></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('forecastForm');
+    const forecastBtn = document.getElementById('forecastBtn');
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    const forecastResults = document.getElementById('forecastResults');
+    const errorMessage = document.getElementById('errorMessage');
+
+    // Обновление опций при изменении типа данных
+    document.getElementById('dataType').addEventListener('change', function() {
+        const dataType = this.value;
+        updateSymbolOptions(dataType);
+        updateFieldOptions(dataType);
+    });
+
+    function updateSymbolOptions(dataType) {
+        const symbolSelect = document.getElementById('symbol');
+        symbolSelect.innerHTML = '';
+
+        const options = dataType === 'crypto' ? [
+            {value: 'BTC', text: 'Bitcoin (BTC)'},
+            {value: 'ETH', text: 'Ethereum (ETH)'},
+            {value: 'BNB', text: 'Binance Coin (BNB)'},
+            {value: 'ADA', text: 'Cardano (ADA)'},
+            {value: 'SOL', text: 'Solana (SOL)'},
+            {value: 'XRP', text: 'Ripple (XRP)'},
+            {value: 'DOT', text: 'Polkadot (DOT)'}
+        ] : [
+            {value: 'Uniswap', text: 'Uniswap'},
+            {value: 'Aave', text: 'Aave'},
+            {value: 'Compound', text: 'Compound'},
+            {value: 'MakerDAO', text: 'MakerDAO'},
+            {value: 'Curve', text: 'Curve Finance'}
+        ];
+
+        options.forEach(option => {
+            const opt = document.createElement('option');
+            opt.value = option.value;
+            opt.textContent = option.text;
+            symbolSelect.appendChild(opt);
+        });
+    }
+
+    function updateFieldOptions(dataType) {
+        const fieldSelect = document.getElementById('field');
+        fieldSelect.innerHTML = '';
+
+        const options = dataType === 'crypto' ? [
+            {value: 'price', text: 'Цена'},
+            {value: 'volume', text: 'Объем торгов'}
+        ] : [
+            {value: 'price', text: 'TVL (как цена)'},
+            {value: 'tvl', text: 'TVL'}
+        ];
+
+        options.forEach(option => {
+            const opt = document.createElement('option');
+            opt.value = option.value;
+            opt.textContent = option.text;
+            fieldSelect.appendChild(opt);
+        });
+    }
+
+    // Обработка отправки формы
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        // Показываем индикатор загрузки
+        loadingIndicator.style.display = 'block';
+        forecastResults.style.display = 'none';
+        errorMessage.style.display = 'none';
+        forecastBtn.disabled = true;
+
+        const formData = new FormData(form);
+        const params = new URLSearchParams();
+        params.append('data_type', formData.get('dataType'));
+        params.append('symbol', formData.get('symbol'));
+        params.append('field', formData.get('field'));
+        params.append('days', formData.get('days'));
+        params.append('forecast_method', formData.get('forecastMethod'));
+        params.append('forecast_days', formData.get('forecastDays'));
+
+        try {
+            const response = await fetch(`/lab3/api/time-series-forecast?${params}`);
+            const data = await response.json();
+
+            if (data.success) {
+                displayForecastResults(data.data);
+            } else {
+                showError(data.error);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showError('Ошибка сети или сервера: ' + error.message);
+        } finally {
+            loadingIndicator.style.display = 'none';
+            forecastBtn.disabled = false;
+        }
+    });
+
+    function displayForecastResults(data) {
+        // Отображаем главный график
+        const plotData = JSON.parse(data.plot);
+
+        const plotConfig = {
+            responsive: true,
+            displayModeBar: true,
+            displaylogo: false,
+            modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d']
+        };
+
+        plotData.layout.margin = {l: 60, r: 30, t: 60, b: 60};
+        plotData.layout.autosize = true;
+
+        Plotly.newPlot('forecastPlot', plotData.data, plotData.layout, plotConfig);
+
+        // Отображаем сравнение методов
+        displayMethodComparison(data.metrics);
+
+        // Отображаем рейтинг методов
+        displayMethodRanking(data.metrics);
+
+        // Отображаем детальные метрики
+        displayDetailedMetrics(data.metrics);
+
+        // Отображаем доверительные интервалы
+        displayConfidenceIntervals(data.confidence_intervals);
+
+        // Отображаем рекомендации
+        displayUsageRecommendations(data);
+
+        forecastResults.style.display = 'block';
+    }
+
+    function displayMethodComparison(metrics) {
+        const container = document.getElementById('methodComparison');
+
+        let comparisonHtml = '<div class="row">';
+
+        Object.keys(metrics).forEach(method => {
+            const metric = metrics[method];
+            const methodName = formatMethodName(method);
+            const qualityColor = getQualityColor(metric.r2);
+
+            comparisonHtml += `
+                <div class="col-md-6 mb-3">
+                    <div class="card border-${qualityColor}">
+                        <div class="card-header bg-${qualityColor} text-white">
+                            <h6 class="mb-0">${methodName}</h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="mb-1"><strong>R²:</strong> ${metric.r2.toFixed(4)}</p>
+                            <p class="mb-1"><strong>RMSE:</strong> ${metric.rmse.toFixed(4)}</p>
+                            <div class="progress" style="height: 5px;">
+                                <div class="progress-bar bg-${qualityColor}" style="width: ${metric.r2 * 100}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        comparisonHtml += '</div>';
+        container.innerHTML = comparisonHtml;
+    }
+
+    function displayMethodRanking(metrics) {
+        const container = document.getElementById('methodRanking');
+
+        // Сортируем методы по качеству
+        const sortedMethods = Object.keys(metrics).sort((a, b) => {
+            return metrics[b].r2 - metrics[a].r2;
+        });
+
+        let rankingHtml = '<ol class="list-group list-group-numbered">';
+
+        sortedMethods.forEach((method, index) => {
+            const metric = metrics[method];
+            const methodName = formatMethodName(method);
+            const qualityColor = getQualityColor(metric.r2);
+
+            rankingHtml += `
+                <li class="list-group-item d-flex justify-content-between align-items-start">
+                    <div class="ms-2 me-auto">
+                        <div class="fw-bold">${methodName}</div>
+                        <small class="text-muted">R² = ${metric.r2.toFixed(4)}</small>
+                    </div>
+                    <span class="badge bg-${qualityColor} rounded-pill">${index + 1}</span>
+                </li>
+            `;
+        });
+
+        rankingHtml += '</ol>';
+        container.innerHTML = rankingHtml;
+    }
+
+    function displayDetailedMetrics(metrics) {
+        const container = document.getElementById('detailedMetrics');
+
+        let tableHtml = `
+            <table class="table table-striped table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Метод</th>
+                        <th>R² Score</th>
+                        <th>RMSE</th>
+                        <th>MSE</th>
+                        <th>Качество</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        Object.keys(metrics).forEach(method => {
+            const metric = metrics[method];
+            const methodName = formatMethodName(method);
+            const qualityColor = getQualityColor(metric.r2);
+            const qualityText = getQualityText(metric.r2);
+
+            tableHtml += `
+                <tr>
+                    <td><strong>${methodName}</strong></td>
+                    <td class="text-${qualityColor}">${metric.r2.toFixed(6)}</td>
+                    <td>${metric.rmse.toFixed(6)}</td>
+                    <td>${metric.mse.toFixed(6)}</td>
+                    <td><span class="badge bg-${qualityColor}">${qualityText}</span></td>
+                </tr>
+            `;
+        });
+
+        tableHtml += '</tbody></table>';
+        container.innerHTML = tableHtml;
+    }
+
+    function displayConfidenceIntervals(intervals) {
+        const container = document.getElementById('confidenceIntervals');
+
+        let intervalsHtml = '<h6>Доверительные интервалы (95%):</h6>';
+
+        if (Object.keys(intervals).length === 0) {
+            intervalsHtml += '<p class="text-muted">Доверительные интервалы не рассчитаны.</p>';
+        } else {
+            intervalsHtml += '<ul class="list-unstyled">';
+
+            Object.keys(intervals).forEach(method => {
+                const interval = intervals[method];
+                const methodName = formatMethodName(method);
+
+                if (interval.lower && interval.upper) {
+                    const avgLower = interval.lower.reduce((a, b) => a + b, 0) / interval.lower.length;
+                    const avgUpper = interval.upper.reduce((a, b) => a + b, 0) / interval.upper.length;
+
+                    intervalsHtml += `
+                        <li class="mb-2">
+                            <strong>${methodName}:</strong>
+                            <span class="badge bg-light text-dark">
+                                ${avgLower.toFixed(2)} - ${avgUpper.toFixed(2)}
+                            </span>
+                        </li>
+                    `;
+                }
+            });
+
+            intervalsHtml += '</ul>';
+        }
+
+        container.innerHTML = intervalsHtml;
+    }
+
+    function displayUsageRecommendations(data) {
+        const container = document.getElementById('usageRecommendations');
+
+        const bestMethod = findBestMethod(data.metrics);
+        const forecastHorizon = data.forecast_days;
+
+        let recommendationsHtml = `
+            <h6>Основные рекомендации:</h6>
+            <ul class="list-unstyled">
+                <li class="mb-2">
+                    <i class="fas fa-star text-warning me-2"></i>
+                    <strong>Лучший метод:</strong> ${formatMethodName(bestMethod.method)}
+                </li>
+                <li class="mb-2">
+                    <i class="fas fa-clock text-info me-2"></i>
+                    <strong>Горизонт прогноза:</strong> ${forecastHorizon} дней
+                </li>
+                <li class="mb-2">
+                    <i class="fas fa-chart-line text-success me-2"></i>
+                    <strong>Точность:</strong> ${getQualityText(bestMethod.r2)}
+                </li>
+            </ul>
+
+            <div class="alert alert-info">
+                <h6 class="alert-heading">Важные замечания:</h6>
+                <ul class="mb-0 small">
+                    <li>Прогнозы являются статистическими оценками</li>
+                    <li>Точность снижается с увеличением горизонта</li>
+                    <li>Учитывайте доверительные интервалы</li>
+                    <li>Регулярно обновляйте модели новыми данными</li>
+                </ul>
+            </div>
+        `;
+
+        container.innerHTML = recommendationsHtml;
+    }
+
+    function formatMethodName(method) {
+        const methodNames = {
+            'linear': 'Линейный',
+            'polynomial_degree_1': 'Полином 1 степени',
+            'polynomial_degree_2': 'Полином 2 степени',
+            'polynomial_degree_3': 'Полином 3 степени',
+            'polynomial_degree_4': 'Полином 4 степени',
+            'polynomial_degree_5': 'Полином 5 степени',
+            'exponential': 'Экспоненциальный',
+            'moving_average': 'Скользящее среднее'
+        };
+
+        return methodNames[method] || method;
+    }
+
+    function getQualityColor(r2) {
+        if (r2 > 0.8) return 'success';
+        if (r2 > 0.6) return 'warning';
+        return 'danger';
+    }
+
+    function getQualityText(r2) {
+        if (r2 > 0.8) return 'Высокое';
+        if (r2 > 0.6) return 'Среднее';
+        return 'Низкое';
+    }
+
+    function findBestMethod(metrics) {
+        let bestMethod = {method: '', r2: -1};
+
+        Object.keys(metrics).forEach(method => {
+            if (metrics[method].r2 > bestMethod.r2) {
+                bestMethod = {method: method, r2: metrics[method].r2};
+            }
+        });
+
+        return bestMethod;
+    }
+
+    function showError(errorText) {
+        document.getElementById('errorText').textContent = errorText;
+        errorMessage.style.display = 'block';
+    }
+
+    // Инициализируем опции при загрузке страницы
+    updateSymbolOptions('crypto');
+    updateFieldOptions('crypto');
+
+    // Обработчик изменения размера окна
+    window.addEventListener('resize', function() {
+        setTimeout(function() {
+            const plotlyGraphs = document.querySelectorAll('.js-plotly-plot');
+            plotlyGraphs.forEach(function(graph) {
+                if (graph.id) {
+                    Plotly.Plots.resize(graph.id);
+                }
+            });
+        }, 300);
+    });
+});
+</script>
+
+<style>
+/* Адаптивные стили */
+@media (max-width: 768px) {
+    #forecastPlot {
+        height: 400px !important;
+    }
+
+    .card-body {
+        padding: 1rem !important;
+    }
+}
+
+@media (max-width: 576px) {
+    #forecastPlot {
+        height: 350px !important;
+    }
+
+    .container-fluid {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+}
+
+.card {
+    border: none;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.shadow-sm {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075) !important;
+}
+
+.progress {
+    border-radius: 10px;
+}
+
+.list-group-item {
+    border-left: none;
+    border-right: none;
+}
+
+.list-group-item:first-child {
+    border-top: none;
+}
+
+.list-group-item:last-child {
+    border-bottom: none;
+}
+</style>
+{% endblock %}

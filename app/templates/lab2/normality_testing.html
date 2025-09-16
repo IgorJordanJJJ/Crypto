@@ -141,21 +141,21 @@
         <!-- Графики -->
         <div class="row mb-4">
             <!-- Гистограмма -->
-            <div class="col-lg-6">
-                <div class="card">
-                    <div class="card-header">
+            <div class="col-lg-6 mb-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-header bg-primary text-white">
                         <h5 class="mb-0">
                             <i class="fas fa-chart-bar me-2"></i>
                             Гистограмма распределения
                         </h5>
                     </div>
-                    <div class="card-body">
-                        <div id="histogramPlot" style="height: 400px;"></div>
-                        <div class="alert alert-info mt-3">
-                            <h6 class="alert-heading">Интерпретация:</h6>
+                    <div class="card-body p-3">
+                        <div id="histogramPlot" style="height: 450px; width: 100%; min-height: 400px;"></div>
+                        <div class="alert alert-info mt-3 mb-0">
+                            <h6 class="alert-heading"><i class="fas fa-info-circle me-2"></i>Интерпретация:</h6>
                             <p class="mb-0 small">
-                                Синяя гистограмма показывает фактическое распределение данных.
-                                Красная линия - теоретическое нормальное распределение.
+                                <span class="badge bg-primary me-2">Синие столбцы</span> показывают фактическое распределение данных.<br>
+                                <span class="badge bg-danger me-2">Красная линия</span> - теоретическое нормальное распределение.<br>
                                 Чем ближе гистограмма к красной линии, тем более нормально распределены данные.
                             </p>
                         </div>
@@ -164,21 +164,21 @@
             </div>
 
             <!-- Q-Q график -->
-            <div class="col-lg-6">
-                <div class="card">
-                    <div class="card-header">
+            <div class="col-lg-6 mb-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-header bg-success text-white">
                         <h5 class="mb-0">
                             <i class="fas fa-chart-scatter me-2"></i>
                             Q-Q график (График квантилей)
                         </h5>
                     </div>
-                    <div class="card-body">
-                        <div id="qqPlot" style="height: 400px;"></div>
-                        <div class="alert alert-info mt-3">
-                            <h6 class="alert-heading">Интерпретация:</h6>
+                    <div class="card-body p-3">
+                        <div id="qqPlot" style="height: 450px; width: 100%; min-height: 400px;"></div>
+                        <div class="alert alert-info mt-3 mb-0">
+                            <h6 class="alert-heading"><i class="fas fa-info-circle me-2"></i>Интерпретация:</h6>
                             <p class="mb-0 small">
-                                Синие точки показывают квантили данных относительно нормального распределения.
-                                Красная пунктирная линия - идеальное соответствие нормальному распределению.
+                                <span class="badge bg-primary me-2">Синие точки</span> показывают квантили данных относительно нормального распределения.<br>
+                                <span class="badge bg-danger me-2">Красная линия</span> - идеальное соответствие нормальному распределению.<br>
                                 Чем ближе точки к красной линии, тем больше данные похожи на нормальное распределение.
                             </p>
                         </div>
@@ -372,8 +372,34 @@ document.addEventListener('DOMContentLoaded', function() {
         const histogramData = JSON.parse(data.histogram);
         const qqData = JSON.parse(data.qq_plot);
 
-        Plotly.newPlot('histogramPlot', histogramData.data, histogramData.layout, {responsive: true});
-        Plotly.newPlot('qqPlot', qqData.data, qqData.layout, {responsive: true});
+        // Настройки для адаптивных графиков
+        const plotConfig = {
+            responsive: true,
+            displayModeBar: true,
+            displaylogo: false,
+            modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d', 'hoverClosestCartesian', 'hoverCompareCartesian']
+        };
+
+        // Обновляем настройки layout для лучшего отображения
+        histogramData.layout.margin = {l: 60, r: 30, t: 60, b: 60};
+        histogramData.layout.autosize = true;
+        histogramData.layout.font = {size: 12};
+
+        qqData.layout.margin = {l: 60, r: 30, t: 60, b: 60};
+        qqData.layout.autosize = true;
+        qqData.layout.font = {size: 12};
+
+        // Создаем графики
+        Plotly.newPlot('histogramPlot', histogramData.data, histogramData.layout, plotConfig);
+        Plotly.newPlot('qqPlot', qqData.data, qqData.layout, plotConfig);
+
+        // Добавляем обработчик изменения размера окна
+        window.addEventListener('resize', function() {
+            setTimeout(function() {
+                Plotly.Plots.resize('histogramPlot');
+                Plotly.Plots.resize('qqPlot');
+            }, 300);
+        });
 
         // Отображаем статистические тесты
         displayNormalityTests(data.normality_tests);
@@ -557,4 +583,69 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('dataType').dispatchEvent(new Event('change'));
 });
 </script>
+
+<style>
+/* Дополнительные стили для улучшения адаптивности */
+@media (max-width: 768px) {
+    #histogramPlot, #qqPlot {
+        height: 350px !important;
+        min-height: 300px !important;
+    }
+
+    .card-body {
+        padding: 1rem !important;
+    }
+
+    .alert.alert-info {
+        font-size: 0.85rem;
+    }
+
+    .badge {
+        font-size: 0.7rem;
+    }
+}
+
+@media (max-width: 576px) {
+    #histogramPlot, #qqPlot {
+        height: 300px !important;
+        min-height: 250px !important;
+    }
+
+    .card-header h5 {
+        font-size: 1rem;
+    }
+
+    .container-fluid {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+}
+
+/* Улучшение внешнего вида карточек */
+.card {
+    border: none;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.card-header {
+    border-bottom: none;
+    border-radius: 10px 10px 0 0 !important;
+}
+
+.shadow-sm {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075) !important;
+}
+
+/* Улучшение графиков Plotly */
+.js-plotly-plot .plotly .modebar {
+    background: transparent !important;
+}
+
+.js-plotly-plot .plotly .modebar-btn {
+    background: rgba(255, 255, 255, 0.9) !important;
+    border-radius: 3px !important;
+    margin: 2px !important;
+}
+</style>
 {% endblock %}

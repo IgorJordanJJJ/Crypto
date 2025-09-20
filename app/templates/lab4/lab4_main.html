@@ -1,0 +1,333 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Заголовок -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1>
+                    <i class="fas fa-project-diagram text-danger me-2"></i>
+                    Лабораторная работа №4
+                </h1>
+                <a href="/" class="btn btn-outline-secondary">
+                    <i class="fas fa-home me-2"></i>Главная
+                </a>
+            </div>
+            <p class="text-muted lead">
+                Кластеризация данных с применением статистических методов
+            </p>
+        </div>
+    </div>
+
+    <!-- Описание работы -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Цель работы
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-3">
+                        <strong>Обрести навыки визуализации данных с применением статистических методов.</strong>
+                    </p>
+
+                    <h6>Задачи:</h6>
+                    <ul class="mb-0">
+                        <li>Использовать результаты выполнения лабораторной работы №1 (данные из БД)</li>
+                        <li>Применить к выбранным данным методы кластеризации</li>
+                        <li>Создать графики с легендой и подписанными осями</li>
+                        <li>Проанализировать результаты кластеризации</li>
+                        <li>Реализовать графический интерфейс приложения</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Методы кластеризации -->
+    <div class="row">
+        <!-- K-means -->
+        <div class="col-lg-6 col-xl-3 mb-4">
+            <div class="card h-100 border-primary shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-circle-nodes me-2"></i>
+                        K-means
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">
+                        Алгоритм кластеризации, который разбивает данные на k кластеров,
+                        минимизируя сумму квадратов расстояний до центров кластеров.
+                    </p>
+
+                    <h6>Особенности:</h6>
+                    <ul class="small">
+                        <li>Требует задания количества кластеров</li>
+                        <li>Эффективен для сферических кластеров</li>
+                        <li>Быстрый и масштабируемый</li>
+                        <li>Чувствителен к выбросам</li>
+                    </ul>
+
+                    <div class="mt-auto">
+                        <a href="/lab4/kmeans" class="btn btn-primary">
+                            <i class="fas fa-chart-scatter me-2"></i>
+                            Перейти к анализу
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DBSCAN -->
+        <div class="col-lg-6 col-xl-3 mb-4">
+            <div class="card h-100 border-success shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-layer-group me-2"></i>
+                        DBSCAN
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">
+                        Алгоритм кластеризации на основе плотности, который находит
+                        кластеры произвольной формы и выявляет выбросы.
+                    </p>
+
+                    <h6>Особенности:</h6>
+                    <ul class="small">
+                        <li>Автоматически определяет количество кластеров</li>
+                        <li>Находит кластеры произвольной формы</li>
+                        <li>Устойчив к выбросам</li>
+                        <li>Чувствителен к параметрам eps и min_samples</li>
+                    </ul>
+
+                    <div class="mt-auto">
+                        <a href="/lab4/dbscan" class="btn btn-success">
+                            <i class="fas fa-project-diagram me-2"></i>
+                            Перейти к анализу
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Иерархическая кластеризация -->
+        <div class="col-lg-6 col-xl-3 mb-4">
+            <div class="card h-100 border-warning shadow-sm">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="fas fa-sitemap me-2"></i>
+                        Иерархическая
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">
+                        Создает иерархию кластеров, которую можно представить в виде
+                        дендрограммы для анализа структуры данных.
+                    </p>
+
+                    <h6>Особенности:</h6>
+                    <ul class="small">
+                        <li>Строит дендрограмму</li>
+                        <li>Не требует предварительного задания k</li>
+                        <li>Детерминированный результат</li>
+                        <li>Высокая вычислительная сложность</li>
+                    </ul>
+
+                    <div class="mt-auto">
+                        <a href="/lab4/hierarchical" class="btn btn-warning text-dark">
+                            <i class="fas fa-tree me-2"></i>
+                            Перейти к анализу
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Сравнение методов -->
+        <div class="col-lg-6 col-xl-3 mb-4">
+            <div class="card h-100 border-info shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-balance-scale me-2"></i>
+                        Сравнение
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">
+                        Сравнительный анализ всех методов кластеризации на одних и тех же
+                        данных с визуализацией и метриками качества.
+                    </p>
+
+                    <h6>Включает:</h6>
+                    <ul class="small">
+                        <li>Параллельное сравнение результатов</li>
+                        <li>Метрики качества кластеризации</li>
+                        <li>Рекомендации по выбору метода</li>
+                        <li>Интерактивная визуализация</li>
+                    </ul>
+
+                    <div class="mt-auto">
+                        <a href="/lab4/comparison" class="btn btn-info">
+                            <i class="fas fa-chart-line me-2"></i>
+                            Перейти к сравнению
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Технические особенности -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-cogs me-2"></i>
+                        Технические особенности реализации
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <h6><i class="fas fa-database me-2 text-primary"></i>Источники данных</h6>
+                            <ul class="small text-muted">
+                                <li>База данных Lab1 (PostgreSQL)</li>
+                                <li>Bybit API (криптовалюты)</li>
+                                <li>DeFi протоколы (TVL данные)</li>
+                                <li>Статистические признаки</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-3">
+                            <h6><i class="fas fa-brain me-2 text-success"></i>Алгоритмы ML</h6>
+                            <ul class="small text-muted">
+                                <li>scikit-learn - кластеризация</li>
+                                <li>PCA - снижение размерности</li>
+                                <li>t-SNE - нелинейная визуализация</li>
+                                <li>Метрики качества кластеризации</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-3">
+                            <h6><i class="fas fa-chart-bar me-2 text-warning"></i>Визуализация</h6>
+                            <ul class="small text-muted">
+                                <li>Plotly.js - интерактивные графики</li>
+                                <li>2D и 3D визуализация</li>
+                                <li>Дендрограммы</li>
+                                <li>Матрицы расстояний</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-3">
+                            <h6><i class="fas fa-mobile-alt me-2 text-info"></i>Интерфейс</h6>
+                            <ul class="small text-muted">
+                                <li>Адаптивный дизайн</li>
+                                <li>Настраиваемые параметры</li>
+                                <li>Экспорт результатов</li>
+                                <li>Интерактивные элементы</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Связь с предыдущими работами -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card bg-light">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-link me-2"></i>
+                        Связь с предыдущими лабораторными работами
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <h6><i class="fas fa-database me-2 text-primary"></i>Лабораторная работа №1</h6>
+                            <p class="small text-muted mb-2">
+                                Используем данные, сохраненные в реляционной базе данных:
+                            </p>
+                            <ul class="small text-muted">
+                                <li>Исторические цены криптовалют</li>
+                                <li>Объемы торгов</li>
+                                <li>TVL DeFi протоколов</li>
+                                <li>Рыночная капитализация</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-4">
+                            <h6><i class="fas fa-chart-histogram me-2 text-success"></i>Лабораторная работа №2</h6>
+                            <p class="small text-muted mb-2">
+                                Развиваем статистические методы анализа:
+                            </p>
+                            <ul class="small text-muted">
+                                <li>Расширение статистических характеристик</li>
+                                <li>Нормализация данных</li>
+                                <li>Корреляционный анализ</li>
+                                <li>Многомерный статистический анализ</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-4">
+                            <h6><i class="fas fa-function me-2 text-warning"></i>Лабораторная работа №3</h6>
+                            <p class="small text-muted mb-2">
+                                Дополняем аналитические возможности:
+                            </p>
+                            <ul class="small text-muted">
+                                <li>От прогнозирования к классификации</li>
+                                <li>Машинное обучение без учителя</li>
+                                <li>Снижение размерности данных</li>
+                                <li>Паттерн-анализ временных рядов</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card {
+    transition: transform 0.2s ease-in-out;
+}
+
+.card:hover {
+    transform: translateY(-3px);
+}
+
+.border-danger {
+    border-width: 2px !important;
+}
+
+.border-primary {
+    border-width: 2px !important;
+}
+
+.border-success {
+    border-width: 2px !important;
+}
+
+.border-warning {
+    border-width: 2px !important;
+}
+
+.border-info {
+    border-width: 2px !important;
+}
+
+.shadow-sm {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075) !important;
+}
+
+.lead {
+    font-size: 1.1rem;
+    font-weight: 400;
+}
+</style>
+{% endblock %}

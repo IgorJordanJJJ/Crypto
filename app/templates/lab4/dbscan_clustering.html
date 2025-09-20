@@ -1,0 +1,447 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Заголовок -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1>
+                    <i class="fas fa-layer-group text-success me-2"></i>
+                    DBSCAN кластеризация
+                </h1>
+                <div>
+                    <a href="/lab4/" class="btn btn-outline-secondary me-2">
+                        <i class="fas fa-arrow-left me-2"></i>Назад к Lab4
+                    </a>
+                    <a href="/" class="btn btn-outline-secondary">
+                        <i class="fas fa-home me-2"></i>Главная
+                    </a>
+                </div>
+            </div>
+            <p class="text-muted lead">
+                Кластеризация на основе плотности с автоматическим определением количества кластеров
+            </p>
+        </div>
+    </div>
+
+    <!-- Параметры анализа -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-success">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-sliders-h me-2"></i>
+                        Параметры DBSCAN кластеризации
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="dbscanForm">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="dataType" class="form-label">Тип данных</label>
+                                    <select class="form-select" id="dataType" name="data_type">
+                                        <option value="crypto" selected>Криптовалюты</option>
+                                        <option value="defi">DeFi протоколы</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="symbols" class="form-label">Символы (через запятую)</label>
+                                    <input type="text" class="form-control" id="symbols" name="symbols"
+                                           value="BTC,ETH,BNB,ADA,SOL,XRP,DOT,MATIC"
+                                           placeholder="BTC,ETH,BNB">
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="mb-3">
+                                    <label for="days" class="form-label">Дней для анализа</label>
+                                    <input type="number" class="form-control" id="days" name="days"
+                                           value="30" min="10" max="365">
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="mb-3">
+                                    <label for="eps" class="form-label">Eps (радиус соседства)</label>
+                                    <input type="number" class="form-control" id="eps" name="eps"
+                                           value="0.5" min="0.1" max="2.0" step="0.1">
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="mb-3">
+                                    <label for="minSamples" class="form-label">Min samples</label>
+                                    <input type="number" class="form-control" id="minSamples" name="min_samples"
+                                           value="2" min="1" max="10">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-10">
+                                <div class="mb-3">
+                                    <label for="features" class="form-label">Признаки для кластеризации (через запятую)</label>
+                                    <input type="text" class="form-control" id="features" name="features"
+                                           value="mean_price,std_price,volatility,mean_return,sharpe_ratio"
+                                           placeholder="mean_price,std_price,volatility">
+                                    <div class="form-text">
+                                        Доступные признаки: mean_price, std_price, volatility, mean_return, sharpe_ratio,
+                                        skewness_return, kurtosis_return, price_trend
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="mb-3">
+                                    <label class="form-label">&nbsp;</label>
+                                    <button type="submit" class="btn btn-success d-block w-100">
+                                        <i class="fas fa-play me-2"></i>Анализировать
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Описание алгоритма -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-info">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        О алгоритме DBSCAN
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Принцип работы:</h6>
+                            <ul class="small">
+                                <li><strong>Density-Based Spatial Clustering of Applications with Noise</strong></li>
+                                <li>Группирует точки, находящиеся в областях высокой плотности</li>
+                                <li>Помечает точки в областях низкой плотности как выбросы</li>
+                                <li>Может находить кластеры произвольной формы</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Параметры:</h6>
+                            <ul class="small">
+                                <li><strong>eps:</strong> Максимальное расстояние между соседними точками</li>
+                                <li><strong>min_samples:</strong> Минимальное количество точек для образования кластера</li>
+                                <li><strong>Автоматическое определение:</strong> Количества кластеров</li>
+                                <li><strong>Выбросы:</strong> Отмечаются как -1</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Индикатор загрузки -->
+    <div id="loadingIndicator" class="row mb-4" style="display: none;">
+        <div class="col-12">
+            <div class="card border-info">
+                <div class="card-body text-center">
+                    <div class="spinner-border text-success me-3" role="status">
+                        <span class="visually-hidden">Загрузка...</span>
+                    </div>
+                    <span>Выполняется DBSCAN кластеризация...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Результаты анализа -->
+    <div id="resultsContainer" style="display: none;">
+        <!-- Визуализация -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-project-diagram me-2"></i>
+                            Результаты DBSCAN кластеризации
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="clusteringPlot"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Метрики и статистика -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card border-success">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-bar me-2"></i>
+                            Статистика кластеризации
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="statisticsContent">
+                            <!-- Статистика будет добавлена динамически -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card border-warning">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Рекомендации по параметрам
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <h6>Выбор параметров:</h6>
+                        <ul class="small">
+                            <li><strong>Малый eps:</strong> Больше кластеров, больше выбросов</li>
+                            <li><strong>Большой eps:</strong> Меньше кластеров, объединение близких групп</li>
+                            <li><strong>Малый min_samples:</strong> Более чувствительный к шуму</li>
+                            <li><strong>Большой min_samples:</strong> Более строгие требования к плотности</li>
+                        </ul>
+
+                        <div class="alert alert-info">
+                            <h6 class="alert-heading">Подсказка</h6>
+                            <p class="mb-0 small">
+                                Попробуйте разные значения eps (0.3-0.7) и min_samples (2-5)
+                                для поиска оптимальных параметров для ваших данных.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Анализ кластеров -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card border-warning">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0">
+                            <i class="fas fa-analytics me-2"></i>
+                            Анализ кластеров
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="clusterAnalysis">
+                            <!-- Анализ кластеров будет добавлен динамически -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Сообщения об ошибках -->
+    <div id="errorContainer" style="display: none;">
+        <div class="row">
+            <div class="col-12">
+                <div class="alert alert-danger" role="alert">
+                    <h5 class="alert-heading">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Ошибка выполнения анализа
+                    </h5>
+                    <p id="errorMessage"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('dbscanForm');
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    const resultsContainer = document.getElementById('resultsContainer');
+    const errorContainer = document.getElementById('errorContainer');
+
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        // Показываем индикатор загрузки
+        loadingIndicator.style.display = 'block';
+        resultsContainer.style.display = 'none';
+        errorContainer.style.display = 'none';
+
+        try {
+            const formData = new FormData(form);
+            const params = new URLSearchParams();
+
+            for (const [key, value] of formData.entries()) {
+                params.append(key, value);
+            }
+
+            const response = await fetch(`/lab4/api/dbscan-clustering?${params.toString()}`);
+            const data = await response.json();
+
+            loadingIndicator.style.display = 'none';
+
+            if (data.success) {
+                displayResults(data.data);
+                resultsContainer.style.display = 'block';
+            } else {
+                document.getElementById('errorMessage').textContent = data.error;
+                errorContainer.style.display = 'block';
+            }
+        } catch (error) {
+            loadingIndicator.style.display = 'none';
+            document.getElementById('errorMessage').textContent = 'Ошибка соединения с сервером: ' + error.message;
+            errorContainer.style.display = 'block';
+        }
+    });
+
+    function displayResults(data) {
+        // Отображаем график
+        const plotData = JSON.parse(data.plot);
+        Plotly.newPlot('clusteringPlot', plotData.data, plotData.layout, {responsive: true});
+
+        // Отображаем статистику
+        displayStatistics(data.metrics);
+
+        // Отображаем анализ кластеров
+        displayClusterAnalysis(data.cluster_analysis, data.symbols, data.clusters);
+    }
+
+    function displayStatistics(metrics) {
+        let statisticsHtml = `
+            <div class="row">
+                <div class="col-6">
+                    <div class="text-center p-3 bg-light rounded">
+                        <h3 class="text-primary">${metrics.n_clusters}</h3>
+                        <small class="text-muted">Найдено кластеров</small>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="text-center p-3 bg-light rounded">
+                        <h3 class="text-danger">${metrics.n_noise}</h3>
+                        <small class="text-muted">Выбросы (шум)</small>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        if (metrics.silhouette_score !== undefined) {
+            statisticsHtml += `
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <h6>Качество кластеризации:</h6>
+                        <div class="metric-item">
+                            <div class="d-flex justify-content-between">
+                                <span>Silhouette Score</span>
+                                <span>${metrics.silhouette_score.toFixed(4)}</span>
+                            </div>
+                            <div class="progress mt-1">
+                                <div class="progress-bar bg-success" style="width: ${((metrics.silhouette_score + 1) / 2 * 100)}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        if (metrics.error) {
+            statisticsHtml += `
+                <div class="alert alert-warning mt-3">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    ${metrics.error}
+                </div>
+            `;
+        }
+
+        document.getElementById('statisticsContent').innerHTML = statisticsHtml;
+    }
+
+    function displayClusterAnalysis(clusterAnalysis, symbols, clusters) {
+        let analysisHtml = '';
+
+        if (Object.keys(clusterAnalysis).length === 0) {
+            analysisHtml = '<div class="alert alert-info">Кластеры не найдены или все точки являются выбросами.</div>';
+        } else {
+            analysisHtml = '<div class="row">';
+
+            Object.keys(clusterAnalysis).forEach((clusterKey, index) => {
+                const cluster = clusterAnalysis[clusterKey];
+                const clusterNumber = clusterKey.split('_')[1];
+
+                let cardClass = 'border-light';
+                let headerClass = 'bg-light';
+                let titleClass = '';
+
+                if (clusterNumber === '-1') {
+                    cardClass = 'border-danger';
+                    headerClass = 'bg-danger text-white';
+                    titleClass = 'text-white';
+                } else {
+                    cardClass = 'border-success';
+                    headerClass = 'bg-light';
+                }
+
+                analysisHtml += `
+                    <div class="col-md-4 mb-3">
+                        <div class="card ${cardClass}">
+                            <div class="card-header ${headerClass}">
+                                <h6 class="mb-0 ${titleClass}">
+                                    ${clusterNumber === '-1' ? 'Выбросы' : `Кластер ${clusterNumber}`}
+                                </h6>
+                                <small class="${clusterNumber === '-1' ? 'text-white-50' : 'text-muted'}">${cluster.size} элементов</small>
+                            </div>
+                            <div class="card-body">
+                                <p><strong>Символы:</strong> ${cluster.symbols.join(', ')}</p>
+                `;
+
+                if (clusterNumber !== '-1') {
+                    analysisHtml += '<h6 class="mt-2">Характеристики:</h6>';
+                    Object.keys(cluster.statistics).forEach(feature => {
+                        const stats = cluster.statistics[feature];
+                        analysisHtml += `
+                            <div class="mb-2">
+                                <small><strong>${feature}:</strong></small><br>
+                                <small class="text-muted">
+                                    Среднее: ${stats.mean.toFixed(4)}<br>
+                                    Стд. откл.: ${stats.std.toFixed(4)}
+                                </small>
+                            </div>
+                        `;
+                    });
+                }
+
+                analysisHtml += `
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            analysisHtml += '</div>';
+        }
+
+        document.getElementById('clusterAnalysis').innerHTML = analysisHtml;
+    }
+});
+</script>
+
+<style>
+.metric-item {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+.progress {
+    height: 8px;
+}
+
+#clusteringPlot {
+    min-height: 500px;
+}
+</style>
+{% endblock %}

@@ -1,0 +1,418 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Заголовок -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1>
+                    <i class="fas fa-sitemap text-warning me-2"></i>
+                    Иерархическая кластеризация
+                </h1>
+                <div>
+                    <a href="/lab4/" class="btn btn-outline-secondary me-2">
+                        <i class="fas fa-arrow-left me-2"></i>Назад к Lab4
+                    </a>
+                    <a href="/" class="btn btn-outline-secondary">
+                        <i class="fas fa-home me-2"></i>Главная
+                    </a>
+                </div>
+            </div>
+            <p class="text-muted lead">
+                Агломеративная кластеризация с построением дендрограммы
+            </p>
+        </div>
+    </div>
+
+    <!-- Параметры анализа -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="fas fa-sliders-h me-2"></i>
+                        Параметры иерархической кластеризации
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="hierarchicalForm">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="dataType" class="form-label">Тип данных</label>
+                                    <select class="form-select" id="dataType" name="data_type">
+                                        <option value="crypto" selected>Криптовалюты</option>
+                                        <option value="defi">DeFi протоколы</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="symbols" class="form-label">Символы (через запятую)</label>
+                                    <input type="text" class="form-control" id="symbols" name="symbols"
+                                           value="BTC,ETH,BNB,ADA,SOL,XRP,DOT,MATIC"
+                                           placeholder="BTC,ETH,BNB">
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="mb-3">
+                                    <label for="days" class="form-label">Дней для анализа</label>
+                                    <input type="number" class="form-control" id="days" name="days"
+                                           value="30" min="10" max="365">
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="mb-3">
+                                    <label for="nClusters" class="form-label">Количество кластеров</label>
+                                    <input type="number" class="form-control" id="nClusters" name="n_clusters"
+                                           value="3" min="2" max="10">
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="mb-3">
+                                    <label for="linkage" class="form-label">Метод связи</label>
+                                    <select class="form-select" id="linkage" name="linkage">
+                                        <option value="ward" selected>Ward</option>
+                                        <option value="complete">Complete</option>
+                                        <option value="average">Average</option>
+                                        <option value="single">Single</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-10">
+                                <div class="mb-3">
+                                    <label for="features" class="form-label">Признаки для кластеризации (через запятую)</label>
+                                    <input type="text" class="form-control" id="features" name="features"
+                                           value="mean_price,std_price,volatility,mean_return,sharpe_ratio"
+                                           placeholder="mean_price,std_price,volatility">
+                                    <div class="form-text">
+                                        Доступные признаки: mean_price, std_price, volatility, mean_return, sharpe_ratio,
+                                        skewness_return, kurtosis_return, price_trend
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="mb-3">
+                                    <label class="form-label">&nbsp;</label>
+                                    <button type="submit" class="btn btn-warning d-block w-100">
+                                        <i class="fas fa-play me-2"></i>Анализировать
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Описание методов связи -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-info">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Методы связи в иерархической кластеризации
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Агломеративные методы:</h6>
+                            <ul class="small">
+                                <li><strong>Ward:</strong> Минимизирует внутрикластерную дисперсию (лучше для сферических кластеров)</li>
+                                <li><strong>Complete:</strong> Расстояние между наиболее удаленными точками</li>
+                                <li><strong>Average:</strong> Среднее расстояние между всеми парами точек</li>
+                                <li><strong>Single:</strong> Расстояние между ближайшими точками</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Особенности:</h6>
+                            <ul class="small">
+                                <li><strong>Дендрограмма:</strong> Показывает иерархию объединения кластеров</li>
+                                <li><strong>Детерминированность:</strong> Результат не зависит от инициализации</li>
+                                <li><strong>Гибкость:</strong> Можно выбрать количество кластеров post-hoc</li>
+                                <li><strong>Сложность:</strong> O(n³) - не подходит для больших датасетов</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Индикатор загрузки -->
+    <div id="loadingIndicator" class="row mb-4" style="display: none;">
+        <div class="col-12">
+            <div class="card border-info">
+                <div class="card-body text-center">
+                    <div class="spinner-border text-warning me-3" role="status">
+                        <span class="visually-hidden">Загрузка...</span>
+                    </div>
+                    <span>Выполняется иерархическая кластеризация...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Результаты анализа -->
+    <div id="resultsContainer" style="display: none;">
+        <!-- Визуализация кластеров -->
+        <div class="row mb-4">
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-scatter me-2"></i>
+                            Результаты кластеризации
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="clusteringPlot"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-tree me-2"></i>
+                            Дендрограмма
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="dendrogramPlot"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Метрики качества -->
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <div class="card border-success">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-bar me-2"></i>
+                            Метрики качества кластеризации
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="metricsContent">
+                            <!-- Метрики будут добавлены динамически -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-info">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-info-circle me-2"></i>
+                            О дендрограмме
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <h6>Интерпретация:</h6>
+                        <ul class="small">
+                            <li><strong>Высота:</strong> Расстояние при объединении</li>
+                            <li><strong>Ветви:</strong> Последовательность объединений</li>
+                            <li><strong>Горизонтальная линия:</strong> Уровень разреза для получения k кластеров</li>
+                            <li><strong>Листья:</strong> Отдельные образцы данных</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Анализ кластеров -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card border-warning">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0">
+                            <i class="fas fa-analytics me-2"></i>
+                            Анализ кластеров
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="clusterAnalysis">
+                            <!-- Анализ кластеров будет добавлен динамически -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Сообщения об ошибках -->
+    <div id="errorContainer" style="display: none;">
+        <div class="row">
+            <div class="col-12">
+                <div class="alert alert-danger" role="alert">
+                    <h5 class="alert-heading">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Ошибка выполнения анализа
+                    </h5>
+                    <p id="errorMessage"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('hierarchicalForm');
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    const resultsContainer = document.getElementById('resultsContainer');
+    const errorContainer = document.getElementById('errorContainer');
+
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        // Показываем индикатор загрузки
+        loadingIndicator.style.display = 'block';
+        resultsContainer.style.display = 'none';
+        errorContainer.style.display = 'none';
+
+        try {
+            const formData = new FormData(form);
+            const params = new URLSearchParams();
+
+            for (const [key, value] of formData.entries()) {
+                params.append(key, value);
+            }
+
+            const response = await fetch(`/lab4/api/hierarchical-clustering?${params.toString()}`);
+            const data = await response.json();
+
+            loadingIndicator.style.display = 'none';
+
+            if (data.success) {
+                displayResults(data.data);
+                resultsContainer.style.display = 'block';
+            } else {
+                document.getElementById('errorMessage').textContent = data.error;
+                errorContainer.style.display = 'block';
+            }
+        } catch (error) {
+            loadingIndicator.style.display = 'none';
+            document.getElementById('errorMessage').textContent = 'Ошибка соединения с сервером: ' + error.message;
+            errorContainer.style.display = 'block';
+        }
+    });
+
+    function displayResults(data) {
+        // Отображаем график кластеров
+        const plotData = JSON.parse(data.plot);
+        Plotly.newPlot('clusteringPlot', plotData.data, plotData.layout, {responsive: true});
+
+        // Отображаем дендрограмму
+        const dendrogramData = JSON.parse(data.dendrogram);
+        Plotly.newPlot('dendrogramPlot', dendrogramData.data, dendrogramData.layout, {responsive: true});
+
+        // Отображаем метрики
+        displayMetrics(data.metrics);
+
+        // Отображаем анализ кластеров
+        displayClusterAnalysis(data.cluster_analysis, data.symbols, data.clusters);
+    }
+
+    function displayMetrics(metrics) {
+        const metricsHtml = `
+            <div class="row">
+                <div class="col-4">
+                    <div class="metric-item">
+                        <h6>Silhouette Score</h6>
+                        <div class="progress mb-2">
+                            <div class="progress-bar bg-primary" style="width: ${((metrics.silhouette_score + 1) / 2 * 100)}%"></div>
+                        </div>
+                        <small class="text-muted">${metrics.silhouette_score.toFixed(4)} (чем выше, тем лучше)</small>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="metric-item">
+                        <h6>Calinski-Harabasz Index</h6>
+                        <p class="h5 text-success">${metrics.calinski_harabasz_score.toFixed(2)}</p>
+                        <small class="text-muted">Чем выше, тем лучше</small>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="metric-item">
+                        <h6>Davies-Bouldin Index</h6>
+                        <p class="h5 text-warning">${metrics.davies_bouldin_score.toFixed(4)}</p>
+                        <small class="text-muted">Чем ниже, тем лучше</small>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.getElementById('metricsContent').innerHTML = metricsHtml;
+    }
+
+    function displayClusterAnalysis(clusterAnalysis, symbols, clusters) {
+        let analysisHtml = '<div class="row">';
+
+        Object.keys(clusterAnalysis).forEach((clusterKey, index) => {
+            const cluster = clusterAnalysis[clusterKey];
+            const clusterNumber = clusterKey.split('_')[1];
+
+            analysisHtml += `
+                <div class="col-md-4 mb-3">
+                    <div class="card border-light">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0">Кластер ${clusterNumber}</h6>
+                            <small class="text-muted">${cluster.size} элементов</small>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>Символы:</strong> ${cluster.symbols.join(', ')}</p>
+                            <h6 class="mt-2">Характеристики:</h6>
+            `;
+
+            Object.keys(cluster.statistics).forEach(feature => {
+                const stats = cluster.statistics[feature];
+                analysisHtml += `
+                    <div class="mb-2">
+                        <small><strong>${feature}:</strong></small><br>
+                        <small class="text-muted">
+                            Среднее: ${stats.mean.toFixed(4)}<br>
+                            Диапазон: ${stats.min.toFixed(4)} - ${stats.max.toFixed(4)}
+                        </small>
+                    </div>
+                `;
+            });
+
+            analysisHtml += `
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        analysisHtml += '</div>';
+        document.getElementById('clusterAnalysis').innerHTML = analysisHtml;
+    }
+});
+</script>
+
+<style>
+.metric-item {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+.progress {
+    height: 8px;
+}
+
+#clusteringPlot, #dendrogramPlot {
+    min-height: 400px;
+}
+</style>
+{% endblock %}

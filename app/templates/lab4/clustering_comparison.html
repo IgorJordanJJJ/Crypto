@@ -1,0 +1,490 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Заголовок -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1>
+                    <i class="fas fa-balance-scale text-info me-2"></i>
+                    Сравнение методов кластеризации
+                </h1>
+                <div>
+                    <a href="/lab4/" class="btn btn-outline-secondary me-2">
+                        <i class="fas fa-arrow-left me-2"></i>Назад к Lab4
+                    </a>
+                    <a href="/" class="btn btn-outline-secondary">
+                        <i class="fas fa-home me-2"></i>Главная
+                    </a>
+                </div>
+            </div>
+            <p class="text-muted lead">
+                Сравнительный анализ K-means, DBSCAN и иерархической кластеризации
+            </p>
+        </div>
+    </div>
+
+    <!-- Параметры анализа -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-info">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-sliders-h me-2"></i>
+                        Параметры сравнительного анализа
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="comparisonForm">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="dataType" class="form-label">Тип данных</label>
+                                    <select class="form-select" id="dataType" name="data_type">
+                                        <option value="crypto" selected>Криптовалюты</option>
+                                        <option value="defi">DeFi протоколы</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="symbols" class="form-label">Символы (через запятую)</label>
+                                    <input type="text" class="form-control" id="symbols" name="symbols"
+                                           value="BTC,ETH,BNB,ADA,SOL,XRP,DOT,MATIC"
+                                           placeholder="BTC,ETH,BNB">
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="mb-3">
+                                    <label for="days" class="form-label">Дней для анализа</label>
+                                    <input type="number" class="form-control" id="days" name="days"
+                                           value="30" min="10" max="365">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label class="form-label">&nbsp;</label>
+                                    <button type="submit" class="btn btn-info d-block w-100">
+                                        <i class="fas fa-play me-2"></i>Сравнить методы
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="mb-3">
+                                    <label for="features" class="form-label">Признаки для кластеризации (через запятую)</label>
+                                    <input type="text" class="form-control" id="features" name="features"
+                                           value="mean_price,std_price,volatility,mean_return,sharpe_ratio"
+                                           placeholder="mean_price,std_price,volatility">
+                                    <div class="form-text">
+                                        Доступные признаки: mean_price, std_price, volatility, mean_return, sharpe_ratio,
+                                        skewness_return, kurtosis_return, price_trend
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Описание сравнения -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-secondary">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        О сравнительном анализе
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p>Данный анализ автоматически применяет различные алгоритмы кластеризации к одним и тем же данным:</p>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <h6><i class="fas fa-circle-nodes text-primary me-2"></i>K-means</h6>
+                            <ul class="small">
+                                <li>Тестируется с k = 2, 3, 4</li>
+                                <li>Быстрый, подходит для сферических кластеров</li>
+                                <li>Чувствителен к выбросам</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-4">
+                            <h6><i class="fas fa-layer-group text-success me-2"></i>DBSCAN</h6>
+                            <ul class="small">
+                                <li>Тестируется с eps = 0.3, 0.5, 0.7</li>
+                                <li>Находит кластеры произвольной формы</li>
+                                <li>Автоматически обнаруживает выбросы</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-4">
+                            <h6><i class="fas fa-sitemap text-warning me-2"></i>Иерархическая</h6>
+                            <ul class="small">
+                                <li>Тестируется с k = 2, 3, 4</li>
+                                <li>Детерминированный результат</li>
+                                <li>Показывает иерархию кластеров</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Индикатор загрузки -->
+    <div id="loadingIndicator" class="row mb-4" style="display: none;">
+        <div class="col-12">
+            <div class="card border-info">
+                <div class="card-body text-center">
+                    <div class="spinner-border text-info me-3" role="status">
+                        <span class="visually-hidden">Загрузка...</span>
+                    </div>
+                    <span>Выполняется сравнительный анализ методов кластеризации...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Результаты сравнения -->
+    <div id="resultsContainer" style="display: none;">
+        <!-- Сравнительная визуализация -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-scatter me-2"></i>
+                            Сравнительная визуализация результатов
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="comparisonPlot"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Таблица сравнения методов -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card border-success">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-table me-2"></i>
+                            Сравнение метрик качества
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="comparisonTable">
+                            <!-- Таблица будет добавлена динамически -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Рекомендации -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card border-warning">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0">
+                            <i class="fas fa-lightbulb me-2"></i>
+                            Рекомендации по выбору метода
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="recommendations">
+                            <!-- Рекомендации будут добавлены динамически -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Подробные результаты -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card border-info">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-bar me-2"></i>
+                            Подробные результаты по каждому методу
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="detailedResults">
+                            <!-- Подробные результаты будут добавлены динамически -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Сообщения об ошибках -->
+    <div id="errorContainer" style="display: none;">
+        <div class="row">
+            <div class="col-12">
+                <div class="alert alert-danger" role="alert">
+                    <h5 class="alert-heading">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Ошибка выполнения анализа
+                    </h5>
+                    <p id="errorMessage"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('comparisonForm');
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    const resultsContainer = document.getElementById('resultsContainer');
+    const errorContainer = document.getElementById('errorContainer');
+
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        // Показываем индикатор загрузки
+        loadingIndicator.style.display = 'block';
+        resultsContainer.style.display = 'none';
+        errorContainer.style.display = 'none';
+
+        try {
+            const formData = new FormData(form);
+            const params = new URLSearchParams();
+
+            for (const [key, value] of formData.entries()) {
+                params.append(key, value);
+            }
+
+            const response = await fetch(`/lab4/api/clustering-comparison?${params.toString()}`);
+            const data = await response.json();
+
+            loadingIndicator.style.display = 'none';
+
+            if (data.success) {
+                displayResults(data.data);
+                resultsContainer.style.display = 'block';
+            } else {
+                document.getElementById('errorMessage').textContent = data.error;
+                errorContainer.style.display = 'block';
+            }
+        } catch (error) {
+            loadingIndicator.style.display = 'none';
+            document.getElementById('errorMessage').textContent = 'Ошибка соединения с сервером: ' + error.message;
+            errorContainer.style.display = 'block';
+        }
+    });
+
+    function displayResults(data) {
+        // Отображаем сравнительный график
+        const plotData = JSON.parse(data.comparison_plot);
+        Plotly.newPlot('comparisonPlot', plotData.data, plotData.layout, {responsive: true});
+
+        // Отображаем таблицу сравнения
+        displayComparisonTable(data.methods_results);
+
+        // Отображаем рекомендации
+        displayRecommendations(data.methods_results);
+
+        // Отображаем подробные результаты
+        displayDetailedResults(data.methods_results, data.symbols);
+    }
+
+    function displayComparisonTable(methodsResults) {
+        let tableHtml = `
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Метод</th>
+                            <th>Параметры</th>
+                            <th>Кластеров</th>
+                            <th>Silhouette Score</th>
+                            <th>Выбросы</th>
+                            <th>Качество</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        // Сортируем результаты по Silhouette Score
+        const sortedResults = Object.entries(methodsResults).sort((a, b) =>
+            b[1].silhouette_score - a[1].silhouette_score
+        );
+
+        sortedResults.forEach(([key, result], index) => {
+            const badgeClass = index === 0 ? 'bg-success' : index === 1 ? 'bg-warning' : 'bg-secondary';
+            const qualityText = index === 0 ? 'Лучший' : index === 1 ? 'Хороший' : 'Приемлемый';
+
+            tableHtml += `
+                <tr>
+                    <td><strong>${result.method}</strong></td>
+                    <td><code>${result.params}</code></td>
+                    <td>${result.n_clusters}</td>
+                    <td>${result.silhouette_score.toFixed(4)}</td>
+                    <td>${result.n_noise || 0}</td>
+                    <td><span class="badge ${badgeClass}">${qualityText}</span></td>
+                </tr>
+            `;
+        });
+
+        tableHtml += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+
+        document.getElementById('comparisonTable').innerHTML = tableHtml;
+    }
+
+    function displayRecommendations(methodsResults) {
+        // Находим лучший результат по Silhouette Score
+        let bestMethod = null;
+        let bestScore = -2;
+
+        Object.entries(methodsResults).forEach(([key, result]) => {
+            if (result.silhouette_score > bestScore) {
+                bestScore = result.silhouette_score;
+                bestMethod = result;
+            }
+        });
+
+        let recommendationsHtml = '';
+
+        if (bestMethod) {
+            recommendationsHtml += `
+                <div class="alert alert-success">
+                    <h6 class="alert-heading">
+                        <i class="fas fa-trophy me-2"></i>
+                        Рекомендуемый метод: ${bestMethod.method}
+                    </h6>
+                    <p class="mb-2">
+                        <strong>Параметры:</strong> ${bestMethod.params}<br>
+                        <strong>Качество кластеризации:</strong> ${bestScore.toFixed(4)} (Silhouette Score)
+                    </p>
+                    <p class="mb-0">
+                        Этот метод показал наилучшее качество разделения данных на кластеры.
+                    </p>
+                </div>
+            `;
+        }
+
+        recommendationsHtml += `
+            <div class="row">
+                <div class="col-md-4">
+                    <h6><i class="fas fa-circle-nodes text-primary me-2"></i>K-means</h6>
+                    <p class="small">
+                        <strong>Рекомендуется когда:</strong><br>
+                        • Ожидаются сферические кластеры<br>
+                        • Известно примерное количество групп<br>
+                        • Нужна высокая скорость работы<br>
+                        • Данные без значительных выбросов
+                    </p>
+                </div>
+                <div class="col-md-4">
+                    <h6><i class="fas fa-layer-group text-success me-2"></i>DBSCAN</h6>
+                    <p class="small">
+                        <strong>Рекомендуется когда:</strong><br>
+                        • Неизвестно количество кластеров<br>
+                        • Ожидаются кластеры произвольной формы<br>
+                        • Присутствуют выбросы в данных<br>
+                        • Нужно их автоматическое обнаружение
+                    </p>
+                </div>
+                <div class="col-md-4">
+                    <h6><i class="fas fa-sitemap text-warning me-2"></i>Иерархическая</h6>
+                    <p class="small">
+                        <strong>Рекомендуется когда:</strong><br>
+                        • Нужна иерархия кластеров<br>
+                        • Небольшой размер данных<br>
+                        • Важна воспроизводимость результата<br>
+                        • Требуется детальный анализ структуры
+                    </p>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('recommendations').innerHTML = recommendationsHtml;
+    }
+
+    function displayDetailedResults(methodsResults, symbols) {
+        let detailedHtml = '';
+
+        // Группируем результаты по методам
+        const methodGroups = {};
+        Object.entries(methodsResults).forEach(([key, result]) => {
+            if (!methodGroups[result.method]) {
+                methodGroups[result.method] = [];
+            }
+            methodGroups[result.method].push({key, ...result});
+        });
+
+        Object.entries(methodGroups).forEach(([method, results]) => {
+            detailedHtml += `
+                <div class="mb-4">
+                    <h6>${method}</h6>
+                    <div class="row">
+            `;
+
+            results.forEach((result, index) => {
+                detailedHtml += `
+                    <div class="col-md-4 mb-3">
+                        <div class="card border-light">
+                            <div class="card-header bg-light">
+                                <small><strong>${result.params}</strong></small>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-6">
+                                        <small class="text-muted">Кластеров:</small><br>
+                                        <strong>${result.n_clusters}</strong>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted">Silhouette:</small><br>
+                                        <strong>${result.silhouette_score.toFixed(4)}</strong>
+                                    </div>
+                                </div>
+                                ${result.n_noise !== undefined ? `
+                                    <div class="mt-2">
+                                        <small class="text-muted">Выбросы: <strong>${result.n_noise}</strong></small>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            detailedHtml += `
+                    </div>
+                </div>
+            `;
+        });
+
+        document.getElementById('detailedResults').innerHTML = detailedHtml;
+    }
+});
+</script>
+
+<style>
+#comparisonPlot {
+    min-height: 600px;
+}
+
+.table th {
+    border-top: none;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+</style>
+{% endblock %}
